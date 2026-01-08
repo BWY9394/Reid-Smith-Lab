@@ -1,6 +1,6 @@
 ## Setting up files for downstream XX-seq analyses
 
-### 1. Retaining only  
+### 1. Retaining only longests CDS per gene
 Required files:
 > Raw files
 >  <ol>
@@ -15,5 +15,4 @@ Required packages:
 >  </ol>
 
 Download the raw files and run code in RStudio.
-Display 
 
