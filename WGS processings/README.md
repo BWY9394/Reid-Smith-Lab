@@ -14,6 +14,7 @@ Ok, so what do we actually get from Novogene?
 > Example
 > 1. S1_DKDN250032122-1A_2373VCLT4_L1_1.fq
 > 2. S1_DKDN250032122-1A_2373VCLT4_L1_2.fq
+
 FASTQC doesnt care it's zipped, so just port it into HPC folder to begin with
 2. QC report
 > Example
@@ -36,8 +37,14 @@ The QC report also has adapter information:
 
 ## QC report
 Technically Novogene has already provided this, but want to also look at other quality metrics i.e. adapter content
-Run FastQC
+Run FastQC in the folder where your files are
+Script required:
 > batch_fastq.sh
+
+The command(s) would be:
+> cd /data/group/medaglab/project/BWee/hemp_RNAseq/01-fastq 
+> sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh
+
 
 You will get:
 > 1. fastqc PER sample PER paired-end file.
@@ -48,3 +55,8 @@ Open up your multiqc files (multiqc_report.html) and inspect generated output.
 ## Trimming
 You can do this on Geneious, but (MUCH)faster to just run it on HPC. We're talking couple of minutes vs. an hour on your regular University-issue machine.
 Will be using BBDukTrim, but feel free to use whatever pleases you e.g. Trimmomatic etc. 
+
+
+
+
+
