@@ -5,7 +5,7 @@ Required files:
 > Raw files
 >  <ol>
 >   <li>faba_reference_qc.R (rename this whatever you want, I started out with faba so here it is)</li>
->   <li>fasta file of the CDS for your organism of interest. (In this case I have provided it as/li>
+>   <li>fasta file of the CDS for your organism of interest. (In this case I have provided it as "HEDIN_TMP5.check.renamed.phase.complete_CDS.fa" </li>
 >  </ol>
 Required packages:
 >R: 
