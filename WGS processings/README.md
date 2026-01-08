@@ -1,5 +1,13 @@
 # WGS pipelines for T-LOC and TDNA-scan
 
+## First set-up HPC access
+Don't bother trying to do this on your local especially if we you have multiple samples.
+Let your PI know that you are requesting access (i.e. AskICT on latrobe intranet)
+Also set-up
+> 1. PuTty (HPC terminal access)
+> 2. WinSCP (File transfer and browsing with UX interactivity to HPC and any other remote access location
+
+
 ## Raw files
 Ok, so what do we actually get from Novogene?
 1. Raw files (zipped folder)
@@ -28,6 +36,15 @@ The QC report also has adapter information:
 
 ## QC report
 Technically Novogene has already provided this, but want to also look at other quality metrics i.e. adapter content
+Run FastQC
+> batch_fastq.sh
+
+You will get:
+> 1. fastqc PER sample PER paired-end file.
+> 2. multiqc html file that combines all the fastqc reports into just one html file
+
+Open up your multiqc files (multiqc_report.html) and inspect generated output.
 
 ## Trimming
 You can do this on Geneious, but (MUCH)faster to just run it on HPC. We're talking couple of minutes vs. an hour on your regular University-issue machine.
+Will be using BBDukTrim, but feel free to use whatever pleases you e.g. Trimmomatic etc. 
