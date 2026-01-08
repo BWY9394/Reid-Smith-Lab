@@ -11,7 +11,7 @@ Required packages:
 >R: 
 > <ol>
 >   <li>dplyr (rename this whatever you want, I started out with faba so here it is)</li>
->   <li> file of the CDS for your organism of interest/li>
+>   <li> seqinr </li>
 >  </ol>
 
 Download the raw files and run code in RStudio.
