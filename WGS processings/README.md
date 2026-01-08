@@ -4,7 +4,7 @@
 Don't bother trying to do this on your local especially if we you have multiple samples.
 Let your PI know that you are requesting access (i.e. AskICT on latrobe intranet)
 Also set-up
-> 1. PuTty (HPC terminal access)
+> 1. PuTTy (HPC terminal access)
 > 2. WinSCP (File transfer and browsing with UX interactivity to HPC and any other remote access location
 
 
@@ -44,7 +44,8 @@ Script required:
 > batch_fastq.sh
 
 The command(s) would be:
-> cd /data/group/medaglab/project/BWee/hemp_RNAseq/01-fastq 
+> cd /data/group/medaglab/project/BWee/hemp_RNAseq/01-fastq
+>
 > sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh
 
 
@@ -59,6 +60,12 @@ You can do this on Geneious, but (MUCH)faster to just run it on HPC. We're talki
 Will be using BBDukTrim, but feel free to use whatever pleases you e.g. Trimmomatic etc. 
 A *bit* of debate as to whether is necessary, but meh, seems to be gold standard so will do so until have time to prove otherwise
 
+Script required:
+> fastqc.sh
 
+The command(s) would be :
+> cd /data/group/medaglab/project/BWee/Trimming
+> 
+> sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh #remember to update this to actual later, as well as update code so it actually runs on multiple files at once.
 
 
