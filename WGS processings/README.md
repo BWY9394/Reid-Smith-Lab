@@ -16,12 +16,14 @@ Ok, so what do we actually get from Novogene?
 > 2. S1_DKDN250032122-1A_2373VCLT4_L1_2.fq
 
 FASTQC doesnt care it's zipped, so just port it into HPC folder to begin with
+
 2. QC report
 > Example
-> X201SC25083173-Z01-F001_Report.html in a folder like e.g. 02.Report_X201SC25083173-Z01-F001 (Folder)
+> X201SC25083173-Z01-F001_Report.html in a folder like "02.Report_X201SC25083173-Z01-F001"
 
 The QC report is useful, but we would also like to generate some other QC metrics.
-The QC report also has adapter information:
+
+The QC report also has adapter information, which will be important for trimming later:
 > Sequences of adapter
 > P5 adapter：
 > P5→P7’(5’→3’)
@@ -55,7 +57,7 @@ Open up your multiqc files (multiqc_report.html) and inspect generated output.
 ## Trimming
 You can do this on Geneious, but (MUCH)faster to just run it on HPC. We're talking couple of minutes vs. an hour on your regular University-issue machine.
 Will be using BBDukTrim, but feel free to use whatever pleases you e.g. Trimmomatic etc. 
-
+A *bit* of debate as to whether is necessary, but meh, seems to be gold standard so will do so until have time to prove otherwise
 
 
 
