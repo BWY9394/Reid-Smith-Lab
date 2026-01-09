@@ -8,8 +8,10 @@
 
 module load BBMap/38.90-GCC-10.2.0
 
-RAW_ROOT="Raw/S16"
-OUT_ROOT="Trimmed/S16"
+mkdir=TrimmedTestSepFold
+
+RAW_ROOT="RawTestSepFold/"
+OUT_ROOT="TrimmedTestSepFold/"
 
 for SAMPLE_DIR in ${RAW_ROOT}/*/; do
     SAMPLE=$(basename "${SAMPLE_DIR}")
