@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --time=1:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=8192
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
 #SBATCH --job-name="BBdukS16"
 #SBATCH --partition=day
 
