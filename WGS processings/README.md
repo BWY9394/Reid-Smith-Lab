@@ -69,6 +69,9 @@ The command(s) would be :
 > sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh #remember to update this to actual later, as well as update code so it actually runs on multiple files at once.
 
 >BBduk_single.sh for single samples at one time
+>
 >BBduk_batch.sh for batch processing if all in one folder
+>
 >BBduk_sep_fold.sh if in subfolders
 
+#Need to do QC for both batch and sep_fold scripts to see if works well
