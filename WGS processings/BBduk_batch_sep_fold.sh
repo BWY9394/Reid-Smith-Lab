@@ -1,17 +1,15 @@
 #!/bin/bash
 #SBATCH --time=1:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=8192
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
 #SBATCH --job-name="BBduk_all"
 #SBATCH --partition=day
 
 module load BBMap/38.90-GCC-10.2.0
 
-mkdir=TrimmedTestSepFold
-
-RAW_ROOT="RawTestSepFold/"
-OUT_ROOT="TrimmedTestSepFold/"
+RAW_ROOT="Raw/" #Change this folder containing raw reads
+OUT_ROOT="Trimmed/" #This is your output folder, change to whatever works for you
 
 for SAMPLE_DIR in ${RAW_ROOT}/*/; do
     SAMPLE=$(basename "${SAMPLE_DIR}")
