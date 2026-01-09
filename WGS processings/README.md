@@ -74,4 +74,4 @@ The command(s) would be :
 >
 >BBduk_sep_fold.sh if in subfolders
 
-#Need to do QC for both batch and sep_fold scripts to see if works well
+#tested, all works now
