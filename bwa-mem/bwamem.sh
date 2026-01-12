@@ -17,7 +17,7 @@ REF=WGS/VuGenome.fasta
 R1=WGS/S15_DKDN250032136-1A_2373VCLT4_L3_1_trimmed.fq
 R2=WGS/S15_DKDN250032136-1A_2373VCLT4_L3_2_trimmed.fq
 
-OUT=results/sample15
+OUT=results/sample15 #So your samples will called sample15.sorted.bam or sample15.idx.stats It's the prefix to your output files OK????
 THREADS=8
 
 # =====================
