@@ -5,7 +5,7 @@ Don't bother trying to do this on your local especially if we you have multiple 
 Let your PI know that you are requesting access (i.e. AskICT on latrobe intranet)
 Also set-up
 > 1. PuTTy (HPC terminal access)
-> 2. WinSCP (File transfer and browsing with UX interactivity to HPC and any other remote access location
+> 2. WinSCP (File transfer and browsing with UX interactivity to HPC and any other remote access location)
 
 
 ## Raw files
