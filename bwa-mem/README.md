@@ -12,6 +12,7 @@ Single:
 
 Paired:
 > yourfiles_L1_1.fq.gz
+> 
 > yourfiles_L1_2.fq.gz
 
 Script:
