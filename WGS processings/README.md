@@ -61,18 +61,35 @@ Will be using BBDukTrim, but feel free to use whatever pleases you e.g. Trimmoma
 A *bit* of debate as to whether is necessary, but meh, seems to be gold standard so will do so until have someone says otherwise
 
 Script required:
-> fastqc.sh
+> BBduk_single.sh
+>
+> BBduk_single.sh for single samples at one time
+>
+> BBduk_batch.sh for batch processing if all in one folder
+>
+> BBduk_sep_fold.sh if in subfolders
+
+Next, navigate to where you have stored the folder containg yourr raw files. In my case its in a subfolder inside Trimming. Also create a folder called "Trimmed".
 
 The command(s) would be :
 > cd /data/group/medaglab/project/BWee/Trimming
 > 
-> sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh 
+> mkdir -p Trimmed #makes a folder called Trimmed
 
->BBduk_single.sh for single samples at one time
+Now, if open up BBduk-single.sh and edit in your file names for raw reads to be trimmed
+> RAW_R1="Raw/S16/S16_DKDN250032137-1A_2373VCLT4_L3_1.fq.gz"   # forward (R1)
 >
->BBduk_batch.sh for batch processing if all in one folder
+> RAW_R2="Raw/S16/S16_DKDN250032137-1A_2373VCLT4_L3_2.fq.gz"   # reverse (R2)
 >
->BBduk_sep_fold.sh if in subfolders
+> BASE="S16_DKDN250032137-1A_2373VCLT4_L3" #just the file name, no _1.fq.gz or _2.fq.gz
+
+Then run the script:
+> sbatch /data/group/medaglab/project/BWee/scripts/BBduk_single.sh  
+
+You will get:
+Trimmed files in your designated output folder under "Trimmed"
+
+Once familiar, switch over to either the BBduk_batch.sh or BBduk_sep_fold.sh scripts for bulk sample processing.
 
 ## Running T-LOC
 What is T-LOC
