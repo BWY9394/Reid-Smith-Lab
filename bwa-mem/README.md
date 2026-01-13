@@ -45,7 +45,7 @@ The script currently saves the output in a new folder. This new folder is by def
 > mkdir -p results15 #edit this to whatever makes sense for you.
 
 ## Run-time
-For a genome of 519 Mb, alignment of paired end (PE) WGS reads approximating 20x coverage,  150bp read length, 6 GB of raw data per sample, 78 million reads per sample (~36 per "end" of PE), took approximately 4 hours with 8 cores/threads, 32GB ram assigned on HPC. Doing this in Geneious would take 3-4 days per sample conmputer with 16GB ram and 6 cores (12 threads).
+For a genome of 519 Mb, mapping of paired end (PE) WGS reads approximating 20x coverage,  150bp read length, 6 GB of raw data per sample, 78 million reads per sample (~36 per "end" of PE), took approximately 4 hours with 8 cores/threads, 32GB ram assigned on HPC. Doing this in Geneious would take 3-4 days per sample conmputer with 16GB ram and 6 cores (12 threads).
 
 ## Viewing your data
 
