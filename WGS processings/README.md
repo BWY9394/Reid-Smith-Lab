@@ -66,7 +66,7 @@ Script required:
 The command(s) would be :
 > cd /data/group/medaglab/project/BWee/Trimming
 > 
-> sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh #remember to update this to actual later, as well as update code so it actually runs on multiple files at once.
+> sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh 
 
 >BBduk_single.sh for single samples at one time
 >
@@ -74,4 +74,9 @@ The command(s) would be :
 >
 >BBduk_sep_fold.sh if in subfolders
 
-#tested, all works now
+## Running T-LOC
+What is T-LOC
+
+## Running TDNA-scan
+What is TDNA-scan
+
