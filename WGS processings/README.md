@@ -38,7 +38,7 @@ The QC report also has adapter information, which will be important for trimming
 
 
 ## QC report
-Technically Novogene has already provided this, but want to also look at other quality metrics i.e. adapter content
+Technically Novogene has already provided this, but may want to also look at other quality metrics i.e. adapter content
 Run FastQC in the folder where your files are
 Script required:
 > batch_fastq.sh
@@ -58,7 +58,7 @@ Open up your multiqc files (multiqc_report.html) and inspect generated output.
 ## Trimming
 You can do this on Geneious, but (MUCH)faster to just run it on HPC. We're talking couple of minutes vs. an hour on your regular University-issue machine.
 Will be using BBDukTrim, but feel free to use whatever pleases you e.g. Trimmomatic etc. 
-A *bit* of debate as to whether is necessary, but meh, seems to be gold standard so will do so until have time to prove otherwise
+A *bit* of debate as to whether is necessary, but meh, seems to be gold standard so will do so until have someone says otherwise
 
 Script required:
 > fastqc.sh
