@@ -5,7 +5,14 @@ This will house all bioinfomatics and data-analysis pipelines and workflows i.e.
 
 ## First set-up HPC access
 Let your PI know that you are requesting access (i.e. AskICT on latrobe intranet).
+
 Introduction to using the HPC:
+
+https://curc.readthedocs.io/en/latest/getting_started/navigating_docs.html
+
+https://docs.erc.monash.edu/Compute/HPC/
+
+Weird how LTU does not have its own HPC resource directory (that I know of)
 
 Also will need to download:
 1. PuTTy (HPC terminal access)
