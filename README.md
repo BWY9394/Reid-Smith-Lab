@@ -27,5 +27,5 @@ Benjamin Wee Yang, PhD
 
 B.WeeYang@latrobe.edu.au
 
-Dugald Reid, PhD, PI
+Dugald Reid, PhD, Senior Lecturer, PI
 Dugald.Reid@latrobe.edu.au
