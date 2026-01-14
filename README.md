@@ -18,6 +18,8 @@ Also will need to download:
 1. PuTTy (HPC terminal access)
 2. WinSCP (File transfer and browsing with UX interactivity to HPC and any other remote access location, i.e. you sequence something and they provide you address and key to download the raw sequencing output into your local drives)
 
+Once ICT grants you access, they will provide the SSH and an SSH key for the HPC, which you can use in WinSCP.
+
 ## Download RStudio 
 A lot of our scripts for local data processing are written in R, so best download R (the coding language) and RStudio (The "environment" which the user uses to manipulate R for various analyses)
 
