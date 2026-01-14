@@ -33,7 +33,7 @@ for SAMPLE_DIR in ${RAW_ROOT}/*/; do
           out1="${OUT_DIR}/${BASE}_1_trimmed.fq.gz" \
           out2="${OUT_DIR}/${BASE}_2_trimmed.fq.gz" \
           ref=adapters.fa ktrim=r k=23 mink=11 hdist=1 \
-          qtrim=rl trimq=10 \
+          qtrim=rl trimq=10 tpe=t \
           minlen=50 \
           threads=${SLURM_CPUS_PER_TASK}
     done
