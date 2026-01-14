@@ -19,7 +19,8 @@ Also will need to download:
 2. WinSCP (File transfer and browsing with UX interactivity to HPC and any other remote access location, i.e. you sequence something and they provide you address and key to download the raw sequencing output into your local drives)
 
 ## Download RStudio 
-A lot of our scripts for local data processing are written in R, so best download R (the coding language) and Rstudio (The "environment" which the user uses to manipulate R for various analyses)
+A lot of our scripts for local data processing are written in R, so best download R (the coding language) and RStudio (The "environment" which the user uses to manipulate R for various analyses)
+
 Google R and Rstudio, download them.
 
 ## Author and Contact 
