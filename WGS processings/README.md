@@ -48,6 +48,8 @@ The command(s) would be:
 >
 > sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh
 
+Notice that my bash script is in a different directory- if you have decided to put the bash script in the same working directory you have set initially, feel free, just omit the file directories preceding batch_fastqc.sh
+
 
 You will get:
 > 1. fastqc PER sample PER paired-end file.
@@ -87,9 +89,12 @@ Then run the script:
 > sbatch /data/group/medaglab/project/BWee/scripts/BBduk_single.sh  
 
 You will get:
-Trimmed files in your designated output folder under "Trimmed"
+Trimmed reads in your designated output folder under "Trimmed"
 
-Once familiar, switch over to either the BBduk_batch.sh or BBduk_sep_fold.sh scripts for bulk sample processing.
+Once familiar, switch over to either the BBduk_batch.sh or BBduk_sep_fold.sh scripts for bulk sample processing, just do:
+> sbatch /data/group/medaglab/project/BWee/scripts/BBduk_batch.sh #Or BBduk_batch_sep_fold.sh if your samples are in subfolders in the Trimming subfolder
+
+No need to edit files names as it just scans the folder containing your raw reads.
 
 ## Running T-LOC
 What is T-LOC
