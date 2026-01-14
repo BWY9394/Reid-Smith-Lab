@@ -71,7 +71,7 @@ Script required:
 >
 > BBduk_sep_fold.sh if in subfolders
 
-Next, navigate to where you have stored the folder containg yourr raw files. In my case its in a subfolder inside Trimming. Also create a folder called "Trimmed".
+Next, navigate to where you have stored the folder containg your raw files. In my case its in a subfolder inside Trimming. Also create a folder called "Trimmed".
 
 The command(s) would be :
 > cd /data/group/medaglab/project/BWee/Trimming
