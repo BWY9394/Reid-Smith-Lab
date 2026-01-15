@@ -135,12 +135,9 @@ For presence/absence analysis, consider any count ≥1 as present, and 0 as abse
 | Bacterial pangenomes          | Panaroo or Roary      |
 | Large datasets (500+ genomes) | MMseqs2               |
 
-For your 51 genomes, OrthoFinder is a great fit.
+For  51 genomes, OrthoFinder is a great fit.
 
 ---
 
-
-
-Just let me know which you'd like to tackle next.
 
 
