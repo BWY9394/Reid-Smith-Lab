@@ -24,6 +24,123 @@ Two methods:
 1. Homolog-based strategy: Widely used for bacteria pangenomes
 2. Map-to-pan strategy
 
-Homolog-based strategy
-> 1. asdf
-> 2. 
+_Will finish later_
+
+## How to analyze abscence/presence with OrthoFinder
+https://www.cd-genomics.com/resource-pan-genome-analysis-bioinformatics.html#guide4
+Useful resource
+
+Sure! Here's the raw Markdown code, all in one block with no extra explanation:
+
+# Using OrthoFinder for Presence/Absence Analysis
+What files to give OrthoFinder
+
+For each genome, use the protein FASTA file containing the longest protein per gene:
+
+> *.longest.aa.fa
+
+That means you will have 51 FASTA files, each with one protein per gene. Put all of them together in a single directory, like this:
+
+> orthofinder_input/
+> 
+> ├── genome01.longest.aa.fa 
+>
+> ├── genome02.longest.aa.fa
+> 
+> ├── ...
+>
+> ├── genome51.longest.aa.fa
+
+
+Make sure nothing else is in that folder.
+
+---
+
+## Running OrthoFinder
+
+To start OrthoFinder, run this simple command:
+
+orthofinder -f orthofinder_input -t 24
+
+- `-f` specifies the folder containing your FASTA files  
+- `-t` sets the number of CPU threads (adjust as needed)  
+
+No extra configuration is needed.
+
+---
+
+## What OrthoFinder does for you
+
+1. Performs all-vs-all protein similarity search (using DIAMOND)  
+2. Clusters proteins into orthogroups (gene families)  
+3. Differentiates paralogs from orthologs  
+4. Generates a presence/absence matrix  
+
+You don’t have to manually pre-cluster, rename genes, or filter paralogs yourself.
+
+---
+
+## Finding the presence/absence matrix
+
+When OrthoFinder finishes, look in this folder inside the output directory:
+
+> Results_/
+>  └── Orthogroups/
+> 
+>    ├── Orthogroups.tsv
+> 
+>    ├── Orthogroups.GeneCount.tsv
+> 
+>    ├── Orthogroups_SingleCopyOrthologues.tsv
+
+
+The file `Orthogroups.GeneCount.tsv` is the one you want.  
+- Rows = gene families  
+- Columns = genomes  
+- Values = number of genes from each family in each genome  
+
+To get presence/absence data:  
+- `>0` → present  
+- `0` → absent  
+
+---
+
+## Two important notes
+
+### 1. File naming
+
+OrthoFinder uses the FASTA filenames as genome IDs, so keep them clean and simple:
+
+> Genome01.fa 
+> Genome02.fa
+
+You *can* use longer filenames like `VFABA.29H.pgsb.r1.Oct2025.longest.aa.fa`, but the output tables can become harder to read.
+
+### 2. Paralogs are expected
+
+Some gene families may have multiple copies in a genome. For example:
+
+GenomeA = 2 GenomeB = 1 GenomeC = 0
+
+
+For presence/absence analysis, consider any count ≥1 as present, and 0 as absent.
+
+---
+
+## When OrthoFinder might not be the best choice
+
+| Situation                     | Recommended tool        |
+|-------------------------------|-----------------------|
+| Read-based presence/absence   | Coverage mapping      |
+| Bacterial pangenomes          | Panaroo or Roary      |
+| Large datasets (500+ genomes) | MMseqs2               |
+
+For your 51 genomes, OrthoFinder is a great fit.
+
+---
+
+
+
+Just let me know which you'd like to tackle next.
+
+
