@@ -30,8 +30,6 @@ _Will finish later_
 https://www.cd-genomics.com/resource-pan-genome-analysis-bioinformatics.html#guide4
 Useful resource
 
-Sure! Here's the raw Markdown code, all in one block with no extra explanation:
-
 # Using OrthoFinder for Presence/Absence Analysis
 What files to give OrthoFinder
 
