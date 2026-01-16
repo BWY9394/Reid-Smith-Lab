@@ -89,11 +89,14 @@ If you do life is easy and just run the OFind.sh script
 
 > sbatch /data/group/medaglab/project/BWee/scripts/Ofind.sh
 
+However, before running, please change your directories in the script as follows.
 
-orthofinder -f orthofinder_input -t 24
+    # Input directory containing protein FASTA files (51 genomes)
+      INPUT_DIR="./panfaba/Longest_AA"
+      orthofinder -f orthofinder_input -t 24
 
-- `-f` specifies the folder containing your FASTA files  
-- `-t` sets the number of CPU threads (adjust as needed)  
+    # Output directory (OrthoFinder will create this)
+      OUTPUT_DIR="./panfaba/Longest_AA/orthofinder_results" #having a folder here already created with the folder name will throw an error
 
 No extra configuration is needed.
 
