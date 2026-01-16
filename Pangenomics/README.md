@@ -56,7 +56,39 @@ Make sure nothing else is in that folder.
 
 ## Running OrthoFinder
 
-To start OrthoFinder, run this simple command:
+To start OrthoFinder, first create a main folder to contain input and output files:
+> mkdir -p /data/group/medaglab/project/BWee/orthofinder_tutorial
+> cd /data/group/medaglab/project/BWee/orthofinder_tutorial
+
+If you are running from local, first download via:
+>  wget https://github.com/davidemms/OrthoFinder/releases/latest/download/OrthoFinder.tar.gz
+
+If running it from HPC, check where it's already been installed
+> module spider Ortho
+
+Results:
+
+    Description:
+      OrthoFinder is a fast, accurate and comprehensive platform for comparative genomics
+
+
+    This module can be loaded directly: module load OrthoFinder/2.5.4-foss-2020b
+
+    Help:
+      Description
+      ===========
+      OrthoFinder is a fast, accurate and comprehensive platform for comparative genomics
+
+
+      More information
+      ================
+       - Homepage: https://github.com/davidemms/OrthoFinder
+
+
+If you do life is easy and just run the OFind.sh script
+
+> sbatch /data/group/medaglab/project/BWee/scripts/Ofind.sh
+
 
 orthofinder -f orthofinder_input -t 24
 
@@ -133,7 +165,6 @@ For presence/absence analysis, consider any count ≥1 as present, and 0 as abse
 | Bacterial pangenomes          | Panaroo or Roary      |
 | Large datasets (500+ genomes) | MMseqs2               |
 
-For  51 genomes, OrthoFinder is a great fit.
 
 ---
 
