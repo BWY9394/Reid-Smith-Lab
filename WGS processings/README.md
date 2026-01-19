@@ -39,14 +39,16 @@ The QC report also has adapter information, which will be important for trimming
 
 ## QC report
 Technically Novogene has already provided this, but may want to also look at other quality metrics i.e. adapter content
+
 Run FastQC in the folder where your files are
+
 Script required:
 > batch_fastq.sh
 
 The command(s) would be:
-> cd /data/group/medaglab/project/BWee/hemp_RNAseq/01-fastq
+> cd /data/group/medaglab/project/BWee/hemp_RNAseq/01-fastq #change directory to where your  files are
 >
-> sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh
+> sbatch /data/group/medaglab/project/BWee/scripts/batch_fastqc.sh #run the script
 
 Notice that my bash script is in a different directory- if you have decided to put the bash script in the same working directory you have set initially, feel free, just omit the file directories preceding batch_fastqc.sh
 
@@ -59,7 +61,9 @@ Open up your multiqc files (multiqc_report.html) and inspect generated output.
 
 ## Trimming
 You can do this on Geneious, but (MUCH)faster to just run it on HPC. We're talking couple of minutes vs. an hour on your regular University-issue machine.
-Will be using BBDukTrim, but feel free to use whatever pleases you e.g. Trimmomatic etc. 
+
+Will be using BBDukTrim, as is the fastest (https://www.biostars.org/p/178647/#:~:text=It's%20also%20important%20to%20note,adapter%2Dremoval%20than%20anything%20else.)
+
 A *bit* of debate as to whether is necessary, but meh, seems to be gold standard so will do so until have someone says otherwise
 
 Script required:
