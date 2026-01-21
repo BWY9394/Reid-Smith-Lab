@@ -18,3 +18,4 @@ So here's what we do:
 1. Get list of Medicago genes from TPC2019-REV-00279R1_Supplemental_Data_Set_1 m (Nod related genes)), based on https://doi.org/10.1105/tpc.19.00279
 2. Download the MT4 to MT5 database from https://www.legoo.org/
 3. Using this MT4-to-MT5 db, convert names to MT5 so you can look it up in generated OrthoFinder groups.
+4. This script has been started in Panfaba GOI processing.R
