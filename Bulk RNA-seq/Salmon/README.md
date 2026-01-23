@@ -43,7 +43,7 @@ grep "^>" <(gunzip -c ./Genomics/Vunguiculata_540_v1.0.softmasked.fa.gz) | cut -
 sed -i.bak -e 's/>//g' decoysVu.txt
 ```
 
-This produces `decoysVu.txt` containing all chromosome/scaffold names.
+This produces `decoysVu.txt` containing all chromosome/scaffold names. Change Vu to whatever works for you, for me I'm starting with cowpea. So. Yea. More for housekeeping so you know what is what
 
 ---
 
