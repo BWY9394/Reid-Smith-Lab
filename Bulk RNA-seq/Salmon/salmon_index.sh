@@ -34,4 +34,4 @@ module load Salmon/1.4.0-GCC-11.2.0
 #-t = transcripts (your cDNA file) #-i = index directory   --gencode
 #y ou don't need the gencode:  zcat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz | head -n 5  will display entry of your gene. If there is no "|" pipe, you're good e.g. >ENST00000335137.4|ENSG000001234| means need gencode
 #output
-salmon index -t Vunguiculata_540_v1.0.gentrome.fa.gz -d decoysVu.txt -p 12 -i salmon_index
+salmon index -t Vunguiculata_540_v1.0.gentrome.fa.gz -d decoysVu.txt -p 12 -i salmon_indexVu
