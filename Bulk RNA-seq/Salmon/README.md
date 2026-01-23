@@ -96,6 +96,44 @@ salmon index \
 
 ---
 
+Absolutely! Here’s your **Salmon quantification step** rewritten in the **same GitHub Markdown tutorial style** as your previous sections:
+
+---
+
+## Salmon Quantification
+
+Once the Salmon index is ready, the next step is to quantify transcript expression for all samples. Here, we assume **paired-end FASTQ files** are stored in individual folders named `C1` → `C24` inside the `Raw` directory.
+
+### SLURM Batch Script
+
+Run salmon_quant_transcript.sh script on HPC:
+
+```bash
+sbatch /data/group/medaglab/project/BWee/scripts/salmon_quant_transcripts.sh
+```
+
+---
+
+ **Explanation of flags**
+
+* `-l A` — automatically detect library type (stranded/unstranded)
+* `-1` — forward reads
+* `-2` — reverse reads (omit if single-end)
+* `-p 32` — number of CPU threads
+* `--validateMappings` — selective alignment mode for improved accuracy
+* `-i` — input Salmon index
+* `-o` — output directory for per-sample quantification results
+
+---
+
+### Notes
+
+* Each sample’s output includes **transcript-level quantification** (TPM, counts).
+* The script processes samples sequentially in a **single SLURM job**. For very large datasets, consider submitting each sample as a separate job to parallelize.
+* Make sure your folder structure matches the script and FASTQ files are named correctly (`C1_1.fq.gz`, `C1_2.fq.gz`, … `C24_1.fq.gz`, `C24_2.fq.gz`).
+
+---
 
 
-Do you want me to add that too?
+
+
