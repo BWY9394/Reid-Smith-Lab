@@ -1,12 +1,12 @@
 # RNA-seq pipelines for Vigna unguiculata
 
 ## References
-https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/
-https://combine-lab.github.io/salmon/getting_started/#indexing-txome
+https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/ #For indexing
+https://combine-lab.github.io/salmon/getting_started/#indexing-txome #For running Salmon after indexing
 
 ## First set-up HPC access
 
-Don’t bother trying this on your local machine, especially if you have multiple samples.
+You could run this on your local machine, the reason not to is because you have space issues (like me), and you also have access to the HPC (every student can request access with PI approval).
 Make sure your PI has granted you access (AskICT on La Trobe intranet).
 
 Also set up:
@@ -28,7 +28,7 @@ We need two main reference files for Salmon indexing:
 
 > Example: `Vunguiculata_540_v1.2.transcript.fa.gz`
 
-> Note: Transcriptome and genome versions mismatch (v1.2 vs v1.0) — acceptable for this build.
+> Note: Transcriptome and genome versions mismatch (v1.2 vs v1.0) — .
 
 ---
 
@@ -38,6 +38,7 @@ We need two main reference files for Salmon indexing:
 
 Salmon requires a list of genome sequences to act as **decoys**.
 
+Run the below code (adjust genome/transcriptome names to your use-case), note that it's 2 lines of separate code:
 ```bash
 grep "^>" <(gunzip -c ./Genomics/Vunguiculata_540_v1.0.softmasked.fa.gz) | cut -d " " -f 1 > decoysVu.txt
 sed -i.bak -e 's/>//g' decoysVu.txt
@@ -45,11 +46,12 @@ sed -i.bak -e 's/>//g' decoysVu.txt
 
 This produces `decoysVu.txt` containing all chromosome/scaffold names. Change Vu to whatever works for you, for me I'm starting with cowpea. So. Yea. More for housekeeping so you know what is what
 
----
 
 ### 2. Concatenate transcripts + genome
 
-Salmon’s **decoy-aware mode** requires the genome sequences to come **after** transcripts in a single FASTA (`gentrome`):
+Salmon’s **decoy-aware mode** requires the genome sequences to come **after** transcripts in a single FASTA (`gentrome`).
+
+Run the below code (adjust genome/transcriptome names to your use-case):
 
 ```bash
 cat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz \
@@ -111,8 +113,48 @@ Run salmon_quant_transcript.sh script on HPC:
 ```bash
 sbatch /data/group/medaglab/project/BWee/scripts/salmon_quant_transcripts.sh
 ```
+Which looks like below:
+```bash
+#!/bin/bash
+#SBATCH --time=20:00:00
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH --job-name="salC1|24"
+#SBATCH --partition=day
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=BWeeYang@latrobe.edu.au # send-to address
 
----
+#Available salmon versions
+#Salmon/1.4.0-GCC-11.2.0
+#Salmon/1.4.0-gompi-2020b
+
+#module load
+module load Salmon/1.4.0-GCC-11.2.0
+
+#Run salmon quant
+
+for fn in Raw/C{1..24}; do
+  samp=$(basename "${fn}")
+  echo "Processing sample ${samp}"
+
+  # -l A: salmon auto-detects library type (stranded/unstranded)
+  # -1: forward reads
+  # -2: reverse reads (ignore if single-end)
+  # -p 8: use 8 CPU threads
+  # --validateMappings: selective alignment mode
+  # -o: output directory for quant results
+
+  salmon quant -i salmon_indexVu -l A \
+    -1 "${fn}/${samp}_1.fq.gz" \
+    -2 "${fn}/${samp}_2.fq.gz" \
+    -p 8 --validateMappings -o "quantsC1_C24/${samp}_quant"
+done
+
+```
+
+
+
 
  **Explanation of flags**
 
