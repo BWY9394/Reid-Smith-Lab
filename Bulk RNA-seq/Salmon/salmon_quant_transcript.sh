@@ -1,11 +1,12 @@
 #!/bin/bash
-#SBATCH --time=12:00:00
+#SBATCH --time=20:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=64
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
 #SBATCH --job-name="salC1|24"
 #SBATCH --partition=day
-
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=BWeeYang@latrobe.edu.au # send-to address
 
 #Available salmon versions
 #Salmon/1.4.0-GCC-11.2.0
@@ -30,5 +31,6 @@ for fn in Raw/C{1..24}; do
   salmon quant -i salmon_indexVu -l A \
     -1 "${fn}/${samp}_1.fq.gz" \
     -2 "${fn}/${samp}_2.fq.gz" \
-    -p 32 --validateMappings -o "quantsC1_C24/${samp}_quant"
+    -p 8 --validateMappings -o "quantsC1_C24/${samp}_quant"
 done
+
