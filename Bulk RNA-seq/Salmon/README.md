@@ -5,6 +5,8 @@ https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/ #For ind
 
 https://combine-lab.github.io/salmon/getting_started/#indexing-txome #For running Salmon after indexing
 
+https://bioconductor.statistik.tu-dortmund.de/packages/3.18/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#why-un-normalized-counts #DESeq2 tute
+
 https://cloud.wikis.utexas.edu/wiki/spaces/bioiteam/pages/47731451/Mapping+tutorial #General information bank for bioinfomatics
 
 ## First set-up HPC access
