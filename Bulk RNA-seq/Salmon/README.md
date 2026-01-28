@@ -5,6 +5,8 @@ https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/ #For ind
 
 https://combine-lab.github.io/salmon/getting_started/#indexing-txome #For running Salmon after indexing
 
+https://cloud.wikis.utexas.edu/wiki/spaces/bioiteam/pages/47731451/Mapping+tutorial #General information bank for bioinfomatics
+
 ## First set-up HPC access
 
 You could run this on your local machine, the reason not to is because you have space issues (like me), and you also have access to the HPC (every student can request access with PI approval).
@@ -17,7 +19,7 @@ Also set up:
 
 ---
 
-## Raw files
+## Raw files for indexing
 
 We need two main reference files for Salmon indexing:
 
@@ -33,7 +35,7 @@ We need two main reference files for Salmon indexing:
 
 ---
 
-## Pre-processing
+## Pre-processing for indexing 
 
 ### 1. Generate decoy list
 
@@ -89,6 +91,12 @@ salmon index \
 
 > **Important:** `--gencode` **not used** — headers do **not** contain GENCODE-style pipe-separated IDs (e.g., `>ENST00000335137.4|ENSG000001234`), so Salmon will correctly use the first whitespace-delimited token as transcript ID.
 
+You can check with:
+
+```bash
+zcat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz | head -n 5
+```
+
 ---
 
 ## Notes
@@ -96,10 +104,10 @@ salmon index \
 * Full transcripts with UTRs improve isoform quantification and mapping accuracy.
 * Decoy-aware indexing reduces false-positive mapping to transcripts.
 * Indexing can take a few minutes to hours depending on genome size and HPC resources.
-
----
-
-Absolutely! Here’s your **Salmon quantification step** rewritten in the **same GitHub Markdown tutorial style** as your previous sections:
+* Why do we create an index?
+  * Creating an index for a computer database (which is basically what any reference genome/transcriptome is), allows for quick access to any "record" (gene+gene metadata), given a short "key" (usually ID of splice variant/isoform for a specific gene locus).
+  * In other words, creating an index for a reference sequence allows it to more rapidly place a read on that sequence at a location where it knows at least a piece of the read matches perfectly or with only a few mismatches.
+  * By jumping right to these spots in the genome, rather than trying to fully align the read to every place in the genome, it saves a ton of time.
 
 ---
 
@@ -158,7 +166,6 @@ done
 echo -e "Sample\tNumReads\tNumMapped\tPercentMapped" > quantsZBF1_ZBF28/salmon_read_summary_ZBF1_ZBF28.tsv
 
 
-
 #Extract mapping stats out into tab-separated table 
 for d in quantsZBF1_ZBF28/*_quant; do
    samp=$(basename "$d" _quant)
@@ -174,11 +181,7 @@ done
 # Optional: email summary to yourself
 mail -s "Salmon Quant Finished" -a quantsZBF1_ZBF2/salmon_read_summary_ZBF1_ZBF28.tsv BWeeYang@ltu.edu.au <<< "All samples finished. See attached summary."
 
-
 ```
-
-
-
 
  **Explanation of flags**
 
