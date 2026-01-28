@@ -1,7 +1,8 @@
-# RNA-seq pipelines for Vigna unguiculata
+# RNA-seq pipeline using Salmon for mapping, tximport for export of counts & abundance, DESeq2 for DEG analysis
 
 ## References
 https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/ #For indexing
+
 https://combine-lab.github.io/salmon/getting_started/#indexing-txome #For running Salmon after indexing
 
 ## First set-up HPC access
