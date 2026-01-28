@@ -108,6 +108,7 @@ zcat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz | head -n 5
   * Creating an index for a computer database (which is basically what any reference genome/transcriptome is), allows for quick access to any "record" (gene+gene metadata), given a short "key" (usually ID of splice variant/isoform for a specific gene locus).
   * In other words, creating an index for a reference sequence allows it to more rapidly place a read on that sequence at a location where it knows at least a piece of the read matches perfectly or with only a few mismatches.
   * By jumping right to these spots in the genome, rather than trying to fully align the read to every place in the genome, it saves a ton of time.
+  * Also, once you index once, you shouldn't need to index it again for other mapping runs for the same species with the same pipeline.
 
 ---
 
