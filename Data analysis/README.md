@@ -390,13 +390,13 @@ Heatmap(
 
 Interpreting clusters:
 
-| Cluster type         | Biomass pattern across N treatments                    | Biological interpretation                                                                | Potential use                                                       |
-| -------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| High–High            | High biomass under both Low and High N                 | Genotypes with strong overall growth and stable performance across nitrogen availability | Candidate parents for breeding broadly adapted, high-yielding lines |
-| Low–Low              | Low biomass under both Low and High N                  | Generally poor performers, possibly limited by growth capacity or symbiotic efficiency   | Lower priority lines; useful as contrasts in physiological studies  |
-| Low–High             | Low biomass under Low N, high biomass under High N     | Nitrogen-responsive genotypes that rely strongly on external N supply                    | Useful for identifying traits linked to fertiliser responsiveness   |
-| High–Low             | High biomass under Low N, reduced biomass under High N | Potentially nitrogen-efficient or symbiosis-optimised genotypes                          | High interest for low-input or sustainable systems                  |
-| Intermediate / mixed | Moderate or variable biomass across treatments         | Genotypes with context-dependent or plastic responses to nitrogen                        | Targets for studying genotype × environment interactions            |
+| Cluster type         | Biomass pattern across N treatments                    | Biological interpretation                                                                |
+| -------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| High–High            | High biomass under both Low and High N                 | Genotypes with strong overall growth and stable performance across nitrogen availability |
+| Low–Low              | Low biomass under both Low and High N                  | Generally poor performers, possibly limited by growth capacity or symbiotic efficiency   |
+| Low–High             | Low biomass under Low N, high biomass under High N     | Nitrogen-responsive genotypes that rely strongly on external N supply                    |
+| High–Low             | High biomass under Low N, reduced biomass under High N | Potentially nitrogen-efficient or symbiosis-optimised genotypes                          |
+| Intermediate / mixed | Moderate or variable biomass across treatments         | Genotypes with context-dependent or plastic responses to nitrogen                        |
 
 
 
