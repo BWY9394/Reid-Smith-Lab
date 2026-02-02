@@ -255,7 +255,7 @@ biomass <- control_lentils_average_stats %>%
 
 
 #first let's explore the data
-ggplot(biomass, aes(x = Low, y = High)) +
+Scatter_biomass_prelim <- ggplot(biomass, aes(x = Low, y = High)) +
   geom_point(color = "black") +
   geom_text(aes(label = Genotype), color="black",check_overlap = FALSE, size = 3, vjust = -0.5) +
   #scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "black")) +
@@ -276,7 +276,8 @@ ggplot(biomass, aes(x = Low, y = High)) +
     #legend.position = "none" # <-- hides the legend  # <-- hides the legend
   ) +
   labs(title = "Lentil diversity screen: Shoot dry weight (g)")
-
+ggsave(Scatter_biomass_prelim, file="./Meysam/2026/Scatterplot_Lent_all_labels.pdf",units="cm",height=24,width=25)
+getwd()
 #great, now let's say we want to highlight individual cultivars
 biomass <- biomass %>%
   mutate(
@@ -547,3 +548,4 @@ writexl::write_xlsx(
   clu_df,
   "Meysam/2026/clustered z-score biomass (per Treatment across genotypes).xlsx"
 )
+
