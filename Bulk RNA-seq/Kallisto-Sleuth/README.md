@@ -1,1 +1,1 @@
-# OMG it's time for some data analysis for RNA-seq data!
+# Paused while working on Salmon pipeline.
