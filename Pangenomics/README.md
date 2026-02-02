@@ -118,6 +118,7 @@ You don’t have to manually pre-cluster, rename genes, or filter paralogs yours
 When OrthoFinder finishes, look in this folder inside the output directory:
 
 > Results_/
+> 
 >  └── Orthogroups/
 > 
 >    ├── Orthogroups.tsv
