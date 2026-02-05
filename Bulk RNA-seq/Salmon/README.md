@@ -207,9 +207,9 @@ mail -s "Salmon Quant Finished" -a quantsZBF1_ZBF2/salmon_read_summary_ZBF1_ZBF2
 ---
 
 
-## tximport (extracting out your TPMs for gene abundance comparison, raw counts for DEG)
+## DESeq2 (DEG analysis) and tximport (extracting out your TPMs for gene abundance comparison, raw counts for DEG)
 
-Ok, now we run tximport to export files out. This will be done in R locally, so please move your RNAseq quantification .sf containing output folders out to a local location on your PC.
+First, we run tximport to export files out. This will be done in R locally, so please move your RNAseq quantification .sf containing output folders out to a local location on your PC.
 
 ## References
 https://bioconductor.org/packages/release/bioc/vignettes/tximport/inst/doc/tximport.html#salmon
@@ -234,31 +234,104 @@ Root ([P:\LAB - OPV - Dugald_Reid\Whereeveryourfilesare])/
 ...
 ```
 
-## script needed
-* tximport_salmon_ZBF1_28.R
+## Script needed
+* DESeq2_salmon-ZBF1_28.R
 
-## packages needed in R
+## Packages needed in R
 ```r
-library(tximport)
 library(tidyverse)
-library("seqinr")
-
+library(tximport)
+library(DESeq2)
+library(ComplexHeatmap)
+library(circlize)
+library(ggrepel)
+```
+## Set working directory (i.e. where your raw files actually are.)
+```r
+setwd("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/ZBF1_ZBF28_ZBF_2025/quantsZBF1_ZBF28/")
+getwd() #check working directory set correctly
 ```
 
-### 1. Sanity checks 
-Ok, so first step, let's check what we actually used in the RNA-seq mapping step
+### 1. Set up files names and folder paths
+```r
+# Vector of folder names containing Salmon quantification outputs
+folders <-  data.frame(folder_names=list.files("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/ZBF1_ZBF28_ZBF_2025/quantsZBF1_ZBF28/"))
+write.csv(folders,file="filenames.csv",row.names=FALSE)
+#already generated the folder path so let's use that
+folders = read.csv("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/ZBF1_ZBF28_ZBF_2025/filenames.csv", header = TRUE)
+# Converted explicitly to character to avoid factor-related issues
+folders = as.character(folders$folder_names)
+# Sort folders in natural (human-readable) order
+# Ensures ZBF2 comes before ZBF10, etc.
+folders <- gtools::mixedsort(folders) # Inspect sorted folder names
+folders
+# Generate full file paths to each Salmon quant.sf file
+# Assumes standard Salmon output structure: <sample>_quant/quant.sf
+files = file.path( folders, "quant.sf")
+# Assign sample names to each file
+# These names must match rownames in the sample metadata (sampleTable)
+names(files) <- paste0("ZBF", 1:28)
+```
+This will give you the below object structure, linking the quant.sf file location with a specific sample ID that makes sense for that sample.+
+```r
+files
+> head(files)
+                 ZBF1                  ZBF2                  ZBF3                  ZBF4                  ZBF5                  ZBF6 
+"ZBF1_quant/quant.sf" "ZBF2_quant/quant.sf" "ZBF3_quant/quant.sf" "ZBF4_quant/quant.sf" "ZBF5_quant/quant.sf" "ZBF6_quant/quant.sf" 
+```
+You then run the below:
+```r
+# Returns TRUE if every expected file is present. So each rowname will be what is named to your salmon output abundnace/count/readlength per sample, as well as where that is stored, so should not have ANY  mismatches. 
+all(file.exists(files)) #If FALSE, do not proceed until the file -> filename link is fixed and returns TRUE
+all(file.exists(files))
+```
+This checks if your file paths to sample ID for naming samples is correct i.e. For ZBF1 at the supposed path of ZBF1_quant/quant.sf, does it exist.
 
-You can download the reference from:
+
+### 2. Set up tx2gene annotation file 
+This is necessary to map transcript ID used in salmon to gene-level IDs that tximport will summarize transcript isoforms to.
+
+In this case, it is the transcript.fa files, which can be downloaded from:
 
 https://phytozome-next.jgi.doe.gov/info/Vunguiculata_v1_2
 
 Click downloaad and look for Vunguiculata_540_v1.2.transcript.fa
 
-The annotation file is provided in this repo.
+The annotation file will also be present in their database, will be a txt file with annotation_info as a suffix. This file is provided as an example in this repo (ExampleData).
 
-Once ready, open R script in RStudio.
-
+We'll use the annotation file to create the tx2gene file, bnot the .fa file, but that's because I already know the 2 are (and shoudld by default) be synced. We'll explore how to check that later.
 ```r
+annotations <-  read.delim("P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE) #54484 annotated transcripts
+data.table::uniqueN(annotations$locusName) #Number of unique transcripts, discards repeated rows per transcript #31948
+tx2gene <- annotations[,c(3,2)] #54484
+head(tx2gene)
+```
+This will give you 2 columns, first being the transcript name, the second being gene IDs
+```r
+> head(tx2gene)
+    transcriptName      locusName
+1 Vigun01g000100.1 Vigun01g000100
+2 Vigun01g000200.1 Vigun01g000200
+3 Vigun01g000200.2 Vigun01g000200
+4 Vigun01g000250.1 Vigun01g000250
+5 Vigun01g000300.1 Vigun01g000300
+6 Vigun01g000300.2 Vigun01g000300
+```
+
+You can also check that there are no duplicates in the transcriptID with:
+```r
+any(duplicated(tx2gene[,1]))
+```
+which will give
+```r
+> any(duplicated(tx2gene[,1]))
+[1] FALSE
+```
+
+Great! Technically that's all we need to then start tximport. However, at this stage it's good to do some sanity checks as below. For instance, first we want to check that what we used for the annotation file to actual .fa file link.
+```r
+###Optional
+#now, if you're actually not sure whether your annotations files is set up correctly, run the below
 transcript_fasta_data <- read.fasta(file = "P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.transcript.fa.gz", as.string = TRUE) #54484 annotated transcripts
 
 transcript_fasta_data_df <- do.call(rbind, lapply(transcript_fasta_data, function(seq_obj) {
@@ -269,38 +342,53 @@ transcript_fasta_data_df <- do.call(rbind, lapply(transcript_fasta_data, functio
     stringsAsFactors = FALSE
   ) 
 })) #54484 annotated transcripts
+```
+What we really want there is the number of rows, which will correspond with the number of unique transcript IDs provided to salmon for mapping of reads to the reference transcriptome. We can see that is matches (54484 unqiue transcript IDs) with the the tx2gene (54484 unqiue transcript IDs) dataframe created from the annotations file.
 
-#let's get some annotation files
-annotations <-  read.delim("P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE) #54484 annotated transcripts
-
-#so everything checks out in terms of numbers
-
+I also provide below some additional code for counting unique isoforms per gene and saving it into a table for export.
+```r
+#you may also be interested in:
 #For accounting, first let's determine how many isoforms per transcript
 duplicate_counts_df_counts <- as.data.frame(table(annotations$locusName)) |> #table() counts how many times each unique locusName appears in your annotations data frame.
   subset(Freq > 1) |>       # keep only loci with >1 transcript
   setNames(c("locusName", "Transcript_Isoforms")) #gives no. isoforms per transcript if there are >1
-
-#Ok, so then let's count how many actual transcripts we have if summarizing to gene-level
-data.table::uniqueN(annotations$locusName) #Number of unique transcripts, discards repeated rows per transcript #31948
-
 #Ok, so let's summarize to gene-level, make sure it matches above number of 31948
 annotations_GL <- annotations %>%
   dplyr::distinct(locusName, .keep_all = TRUE) #31948 more accurate because some genetranscripts might not have .1 read. Some start with .2
 
 #Could be useful to know also how many isoforms per gene
 annotations_GL <- left_join(annotations_GL,duplicate_counts_df_counts, by="locusName", relationship="one-to-one")
-write.csv(annotations_GL,file="P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info_GL.csv",row.names = FALSE)
+write.csv(annotations_GL,
+          file="P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info_GL.csv",
+          row.names = FALSE)
+          
 ```
-### 2. Ok, now generate tx2gene dataframe for tximport to extract TPMS and counts for
+
+### 3. Generating TPMs, raw counts and other summarizations with tximport and tidyverse
+Great! Now we are ready to create our tximport-mediated object for some downstream analysis.
 ```r
-#Ok, let's generate the tx2gene annotation file
-colnames(annotations)
-tx2gene <- annotations[,c(3,2)] #Note that I KINDA should have just used the actual extracted transcript_fasta_data_df file, but in this case I did not since annotation gene counts matched the fasta file. Also the geneIDs I wanted to use was in annotation file's column 2 
+txi.salmon.tsv = tximport(files,
+                          type = "salmon",
+                          tx2gene = tx2gene,
+                          dropInfReps = TRUE,
+                          countsFromAbundance = "no") # don't worry about this too much, if you are using DESeq2, it will do its own thing with count normalization. And you will use TPMs for gene abundance anyway.
 
+#save it into a dataframe
+final <- data.frame(txi.salmon.tsv)
+head(final)
+```
 
-head(tx2gene)
-#Does any transcript ID map to more than one gene/locus?
-any(duplicated(tx2gene[,1])) #should be false otherwise your tx2gene dataframe needs to be checked again fo repeated transcript_id to multiple gene_ID mappings
+And that gives you a dataframe to extract TPMs and the like from!
+```r
+> head(final)
+               abundance.ZBF1 abundance.ZBF2 abundance.ZBF3 abundance.ZBF4 abundance.ZBF5 abundance.ZBF6 abundance.ZBF7 abundance.ZBF8 abundance.ZBF9 abundance.ZBF10
+Vigun01g000100      24.582169      23.796251      27.654636      26.291820      24.318085      29.925334      23.540728      21.786672      24.270277       24.711348
+Vigun01g000200     652.507434     691.774213     593.485490     596.899794     583.840262     458.590237     616.001666     637.918191     542.073237      475.285512
+```
+You'll also observe that the samples are correctly labelled with what you provided with the "files" argument in tximport(files,...). So everything works
+
+Next, you will also want to set up some metadata for 1. renaming your files from 
+
 
 ```
 ### 3. Now set up filepaths to tell tximport where to look in to get your .sf files
