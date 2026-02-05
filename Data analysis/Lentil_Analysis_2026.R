@@ -18,7 +18,7 @@ library(emmeans)
 #wd
 setwd("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Consultation/")
 setwd("C:/Users/BWeeY/OneDrive - LA TROBE UNIVERSITY/Consultation/")
-
+getwd()
 #load in datasets
 raw_lent <- readxl::read_xlsx("Meysam/Lentil_Final_v2.xlsx",sheet="all data")
 colnames(raw_lent)
@@ -253,6 +253,26 @@ biomass <- control_lentils_average_stats %>%
     values_from = mean
   )
 
+control_lentils_average_stats$variable <- as.factor(control_lentils_average_stats$variable)
+levels(control_lentils_average_stats$variable)
+
+
+NDFA <- control_lentils_average_stats %>%
+  filter(variable == "%Ndfa") %>%
+  dplyr::select(Genotype, Genotype_Name, Trt, mean) %>%
+  pivot_wider(
+    names_from = Trt,
+    values_from = mean
+  )
+
+Count_act <- control_lentils_average_stats %>%
+  filter(variable == "Count_active") %>%
+  dplyr::select(Genotype, Genotype_Name, Trt, mean) %>%
+  pivot_wider(
+    names_from = Trt,
+    values_from = mean
+  )
+
 
 #first let's explore the data
 Scatter_biomass_prelim <- ggplot(biomass, aes(x = Low, y = High)) +
@@ -277,7 +297,58 @@ Scatter_biomass_prelim <- ggplot(biomass, aes(x = Low, y = High)) +
   ) +
   labs(title = "Lentil diversity screen: Shoot dry weight (g)")
 ggsave(Scatter_biomass_prelim, file="./Meysam/2026/Scatterplot_Lent_all_labels.pdf",units="cm",height=24,width=25)
+
+Scatter_NDFA_prelim <- ggplot(NDFA, aes(x = Low, y = High)) +
+  geom_point(color = "black") +
+  geom_text(aes(label = Genotype), color="black",check_overlap = FALSE, size = 3, vjust = -0.5) +
+  #scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "black")) +
+  theme_bw(base_size=12) +
+  theme(
+    axis.title.x = element_text(color = "black", size = 12, face = "bold"),
+    axis.title.y = element_text(color = "black", size = 12, face = "bold"),
+    axis.text.x  = element_text(size = 7.5, face = "bold"),
+    axis.text.y  = element_text(size = 7.5, face = "bold"),
+    strip.text   = element_text(size = 11, face = "bold"),
+    strip.background = element_rect(fill = "gray90", color = NA),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text  = element_text(size = 10),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.2, color = "gray80"),
+    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    #legend.position = "none" # <-- hides the legend  # <-- hides the legend
+  ) +
+  labs(title = "Lentil diversity screen: %NDFA")
+Scatter_NDFA_prelim
+ggsave(Scatter_NDFA_prelim, file="./Meysam/2026/Scatterplot_Lent_all_labels_NDFA.pdf",units="cm",height=24,width=25)
+
+Actnod_NDFA_prelim <- ggplot(Count_act, aes(x = Low, y = High)) +
+  geom_point(color = "black") +
+  geom_text(aes(label = Genotype), color="black",check_overlap = FALSE, size = 3, vjust = -0.5) +
+  #scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "black")) +
+  theme_bw(base_size=12) +
+  theme(
+    axis.title.x = element_text(color = "black", size = 12, face = "bold"),
+    axis.title.y = element_text(color = "black", size = 12, face = "bold"),
+    axis.text.x  = element_text(size = 7.5, face = "bold"),
+    axis.text.y  = element_text(size = 7.5, face = "bold"),
+    strip.text   = element_text(size = 11, face = "bold"),
+    strip.background = element_rect(fill = "gray90", color = NA),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text  = element_text(size = 10),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.2, color = "gray80"),
+    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    #legend.position = "none" # <-- hides the legend  # <-- hides the legend
+  ) +
+  labs(title = "Lentil diversity screen: Active Nodules")
+Actnod_NDFA_prelim
+ggsave(Actnod_NDFA_prelim, file="./Meysam/2026/Scatterplot_Lent_all_labels_ActNods.pdf",units="cm",height=24,width=25)
 getwd()
+
+
+
 #great, now let's say we want to highlight individual cultivars
 biomass <- biomass %>%
   mutate(
@@ -469,6 +540,88 @@ DW_vs_NDFA <- ggplot(lentils_wide,aes(x = `mean_Dry Weight (g)`, y = `mean_%Ndfa
 DW_vs_NDFA
 ggsave(DW_vs_NDFA,file="./Meysam/2026/Lentils_DW_vs_NDFA.pdf",units="cm",height=20,width=30)
 
+# Act Nod vs NDFA
+#now do a preview plot
+colnames(lentils_wide)
+Act_vs_NDFA <- ggplot(lentils_wide,  aes(x = `mean_%Ndfa`, y = `mean_Count_active`)) +
+  geom_point(color = "black", size = 1.5) +
+  geom_text(aes(label = Genotype), color = "black", size = 3, vjust = -0.5) +
+  facet_wrap(~ Trt) +
+  theme_bw(base_size = 12) +
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.x  = element_text(size = 7.5, face = "bold"),
+    axis.text.y  = element_text(size = 7.5, face = "bold"),
+    strip.text   = element_text(size = 11, face = "bold", hjust = 0),
+    strip.background = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.2, color = "gray80"),
+    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    legend.position = "none"
+  ) +
+  labs(
+    title = "Lentil diversity screen: Active Nods vs. NDFA",
+    x = "Mean %NDFA",
+    y = "Mean Active nodules"
+  )
+
+Act_vs_NDFA
+ggsave(Act_vs_NDFA,file="./Meysam/2026/Lentils_ActNod_vs_NDFA.pdf",units="cm",height=20,width=30)
+
+
+#Decide what genotype numbers you want to retain
+#Then, add to the below code
+lentils_wide <- lentils_wide %>%
+  mutate(
+    `Commercial Cultivars/Peas` = case_when(
+      Genotype %in% c("Sym9", "Sym19") ~ "Control",
+      Genotype %in% c("G300")          ~ "Commercial",
+      TRUE                             ~ "Other"
+    )
+  )
+
+#Now, do scatter plots for DW vs NDFA
+colnames(lentils_wide)
+DW_vs_NDFA <- ggplot(lentils_wide,aes(x = `mean_Dry Weight (g)`, y = `mean_%Ndfa`)) +
+  geom_point(aes(color = `Commercial Cultivars/Peas`)) +
+  # label ONLY Control + Commercial
+  geom_text(
+    data = subset(lentils_wide,`Commercial Cultivars/Peas` %in% c("Control", "Commercial")),
+    aes(label = Genotype, color = `Commercial Cultivars/Peas`),
+    size = 3, vjust = -0.5) +
+  #p rovide color scale
+  scale_color_manual(
+    values = c("Control" = "blue",
+               "Commercial" = "red",
+               "Other" = "black") ) +
+  theme_bw(base_size = 12) +
+  geom_smooth(method = "lm", se = TRUE,color="orange",fill="orange",linewidth=0.5) +
+  facet_wrap(~Trt) +
+  # ylim(-5,NA)+
+  #xlim(-5,NA)+
+  theme(
+    axis.title.x = element_text(color = "black", size = 12, face = "bold"),
+    axis.title.y = element_text(color = "black", size = 12, face = "bold"),
+    axis.text.x  = element_text(size = 7.5, face = "bold"),
+    axis.text.y  = element_text(size = 7.5, face = "bold"),
+    strip.text   = element_text(size = 11, face = "bold",hjust =0.01),
+    strip.background = element_blank(),#element_rect(fill = "gray90", color = NA),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text  = element_text(size = 10),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.2, color = "gray80"),
+    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    #legend.position = "none"   # <-- hides the legend
+  ) +
+  labs(title = "Lentil diversity screen: Shoot dry weight (g) vs. %NDFA for High and Low N")
+
+DW_vs_NDFA
+ggsave(DW_vs_NDFA,file="./Meysam/2026/Lentils_DW_vs_NDFA.pdf",units="cm",height=20,width=30)
+
+
 
 #Ok, time for heatmaps
 View(biomass)
@@ -548,4 +701,3 @@ writexl::write_xlsx(
   clu_df,
   "Meysam/2026/clustered z-score biomass (per Treatment across genotypes).xlsx"
 )
-
