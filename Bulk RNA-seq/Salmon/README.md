@@ -387,7 +387,57 @@ Vigun01g000200     652.507434     691.774213     593.485490     596.899794     5
 ```
 You'll also observe that the samples are correctly labelled with what you provided with the "files" argument in tximport(files,...). So everything works
 
+Now we are ready to extract from this "final" dataframe
+ 
+ 1. Raw counts csv file
+ 2. Raw TPM csv file
+ 3. Mean TPM csv file, with stats (sd, n, sem etc.)
+
+### 3.1 Generating the summarizations needed tximport object
+
+First, let's get some  metadata for each sample i.e. what each sample actually is. This will be used for the summarizations, as well as for later when telling DESeq2 what differential expression analysis to actually run.
+
+So, load in the metadata (which was created manually in excel)
+
+```r
+metadata <- readxl::read_xlsx("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/01.RawData/Copy of Sample Register.xlsx") #load meta data in
+```
+
+Which gives the below:
+```r
+> str(metadata)
+tibble [88 × 8] (S3: tbl_df/tbl/data.frame)
+ $ Project           : chr [1:88] "Zn Binding and Filamentation" "Zn Binding and Filamentation" "Zn Binding and Filamentation" "Zn Binding and Filamentation" ...
+ $ Exp Sample ID     : chr [1:88] "ZBF1" "ZBF2" "ZBF3" "ZBF4" ...
+ $ RNA Sample Code   : chr [1:88] "ZBF1" "ZBF2" "ZBF3" "ZBF4" ...
+ $ Description       : chr [1:88] "VuFUN WT 13.01" "VuFUN WT 13.02" "VuFUN WT 13.03" "VuFUN WT 13.04" ...
+ $ Identifying Allele: chr [1:88] "WT13" "WT13" "WT13" "WT13" ...
+ $ Treatment         : chr [1:88] "Spec negative, non-transformed" "Spec negative, non-transformed" "Spec negative, non-transformed" "Spec negative, non-transformed" ...
+ $ Day               : chr [1:88] "NA" "NA" "NA" "NA" ...
+ $ Plant Age         : num [1:88] 21 21 21 21 21 21 21 21 21 21 ...
+ ```
+ But we really only need a dataframe matching Sample ID with relevant experiment factors, which in this case is RNA Sample Code and Identifying Allele.
+
+ ```r
+ ZBFmetadata <- metadata %>%
+  filter(Project == "Zn Binding and Filamentation") #filter out for just ZBF experiment
+head(ZBFmetadata)
+
+
+
+
+
+
+
+
 Next, you will also want to set up some metadata for 1. renaming your files from 
+
+
+
+
+
+
+
 
 
 ```
