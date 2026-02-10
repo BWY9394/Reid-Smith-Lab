@@ -771,6 +771,60 @@ Scatter_biomass_ndfa_SC_prelim
 
 ggsave(Scatter_biomass_ndfa_SC_prelim, file="./Meysam/2026/Scatterplot_BiomassvsActNods_MatchingNDFAOnly_Lent_all_labels.pdf",units="cm",height=24,width=25)
 
+#Ok now let's make some groupings
+lentils_wide_SC <- lentils_wide_SC %>%
+  mutate(
+    `Commercial Cultivars/Controls` = case_when(
+      Genotype %in% c("G300") ~ "Control",
+      Genotype %in% c("G228") ~ "Commercial",
+      Genotype %in% c("G282", "G202", "G160", "G170", "G265", "G274", "G246", "G220", "G81", "G255", "G205", "G188", "G234", "G128", "G239") ~ "Bad performers",
+      Genotype %in% c(
+        "G268", "G18", "G139", "G173", "G261", "G181",
+        "G229", "G1", "G187", "G216", "G199", "G145", "G298"
+      ) ~ "Good performers",
+      TRUE ~ "Other"
+    )
+  )
 
+colnames(lentils_wide_SC)
+Biomass_vs_ndfa_SC <- ggplot(lentils_wide_SC,aes(x =`mean_Dry Weight (g)`, y = `mean_%Ndfa`)) +
+  geom_point(aes(color = `Commercial Cultivars/Controls`)) +
+  # label ONLY Control + Commercial
+  geom_text(
+    data = subset(lentils_wide_SC,`Commercial Cultivars/Controls` 
+                  %in% c("Control", "Commercial", "Good performers", "Bad performers")),
+    aes(label = Genotype, color = `Commercial Cultivars/Controls`),
+    size = 3, vjust = -0.5) +
+  #provide color scale
+  scale_color_manual(
+    values = c(
+      "Control" = "blue",
+      "Commercial" = "red",
+      "Good performers" = "darkgreen",
+      "Bad performers" = "orange",
+      "Other" = "black",
+      drop = FALSE) ) +
+  theme_bw(base_size = 12) +
+  geom_smooth(method = "lm", se = TRUE,color="yellow",fill="gray",linewidth=0.5) +
+  facet_wrap(~Trt) +
+  # ylim(-5,NA)+
+  #xlim(-5,NA)+
+  theme(
+    axis.title.x = element_text(color = "black", size = 12, face = "bold"),
+    axis.title.y = element_text(color = "black", size = 12, face = "bold"),
+    axis.text.x  = element_text(size = 7.5, face = "bold"),
+    axis.text.y  = element_text(size = 7.5, face = "bold"),
+    strip.text   = element_text(size = 11, face = "bold",hjust =0.01),
+    strip.background = element_blank(),#element_rect(fill = "gray90", color = NA),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text  = element_text(size = 10),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.2, color = "gray80"),
+    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    #legend.position = "none"   # <-- hides the legend
+)
+Biomass_vs_ndfa_SC
+ggsave(Biomass_vs_ndfa_SC, file="./Meysam/2026/Scatterplot_BiomassvsActNods_MatchingNDFAOnly_Lent_select_labels.png",units="cm",height=24,width=25)
 
 
