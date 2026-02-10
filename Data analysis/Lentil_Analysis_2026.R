@@ -20,7 +20,8 @@ setwd("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Consultation/")
 setwd("C:/Users/BWeeY/OneDrive - LA TROBE UNIVERSITY/Consultation/")
 getwd()
 #load in datasets
-raw_lent <- readxl::read_xlsx("Meysam/Lentil_Final_v2.xlsx",sheet="all data")
+raw_lent <- readxl::read_xlsx("Meysam/Lentil_Final_v2.xlsx",sheet="all_data_true")
+#writexl::write_xlsx(raw_lent, "Meysam/Lentil_Final_v3.xlsx")
 colnames(raw_lent)
 #Need DW, NDFA, Act Nods, for high and low N for factors of Genotype (Genotype Name +Genotype) and Trt (High/Low)
 raw_filt_lent <- raw_lent[,c(11,15,20,21,22,33)]
@@ -67,7 +68,10 @@ control_lentils_average_stats <- plyr::ddply(
   n    = sum(!is.na(value)),
   sem  = sd(value, na.rm = TRUE) / sqrt(sum(!is.na(value)))
 )
-
+writexl::write_xlsx(
+  control_lentils_average_stats,
+  "Meysam/2026/Lentil_Avge_Stats_Matching_NDFA_Biomass_2026.xlsx"
+)
 
 
 #Great save now
@@ -701,3 +705,72 @@ writexl::write_xlsx(
   clu_df,
   "Meysam/2026/clustered z-score biomass (per Treatment across genotypes).xlsx"
 )
+
+###########
+# Special Case for Meysam, want to compare just Count
+###########
+raw_filt_lent_symadj #Lookng at this DF, first have to sort out all these 0's that have been assigned under NDFA
+raw_filt_lent_symadj <- raw_filt_lent_symadj %>%
+  mutate(`%Ndfa` = str_replace(`%Ndfa`,
+                               "^0$",
+                               "NA")
+  )
+
+raw_filt_lent_symadj$`%Ndfa` <- as.numeric(raw_filt_lent_symadj$`%Ndfa`)
+colnames(raw_filt_lent_symadj)
+
+raw_filt_lent_symadj_DW_NDFA_match <- raw_filt_lent_symadj %>%
+  filter(
+    !is.na(`Dry Weight (g)`),
+    !is.na(`%Ndfa`)
+  ) #814 from 1920
+
+combined_melt_SC= reshape2::melt(raw_filt_lent_symadj_DW_NDFA_match,id.vars=c("Genotype_Name","Genotype","Trt"),na.rm=TRUE)
+combined_melt_SC$value <- as.numeric(combined_melt_SC$value)
+control_lentils_SC_average_stats <- plyr::ddply(
+  combined_melt_SC,
+  c("Genotype_Name", "Genotype","Trt","variable"),
+  summarise,
+  mean = mean(value, na.rm = TRUE),
+  sd   = sd(value, na.rm = TRUE),
+  n    = sum(!is.na(value)),
+  sem  = sd(value, na.rm = TRUE) / sqrt(sum(!is.na(value)))
+)
+
+lentils_wide_SC <- control_lentils_SC_average_stats %>%
+  pivot_wider(
+    id_cols = c(Genotype_Name, Genotype, Trt), #id_cols → the identifiers you want to keep as rows (Genotype.number, Genotype.name, N2.Treatment).
+    names_from = variable, #names_from = variable → the factor column whose levels become new column names.
+    values_from = c(mean, sd, n, sem) #values_from = c(mean, sd, n, sem) → the measurement columns that get spread into those new variable-specific columns.
+  )
+
+Scatter_biomass_ndfa_SC_prelim <- ggplot(lentils_wide_SC,  aes(x = `mean_Dry Weight (g)`, y = `mean_%Ndfa`)) +
+  geom_point(color = "black", size = 1.5) +
+  geom_text(aes(label = Genotype), color = "black", size = 3, vjust = -0.5) +
+  facet_wrap(~ Trt) +
+  theme_bw(base_size = 12) +
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.x  = element_text(size = 7.5, face = "bold"),
+    axis.text.y  = element_text(size = 7.5, face = "bold"),
+    strip.text   = element_text(size = 11, face = "bold", hjust = 0),
+    strip.background = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.2, color = "gray80"),
+    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    legend.position = "none"
+  ) +
+  labs(
+    title = "Lentil diversity screen: Shoot dry weight (g) vs. %NDFA for High and Low N",
+    x = "Mean shoot dry weight (g)",
+    y = "%NDFA"
+  )
+Scatter_biomass_ndfa_SC_prelim
+
+ggsave(Scatter_biomass_ndfa_SC_prelim, file="./Meysam/2026/Scatterplot_BiomassvsActNods_MatchingNDFAOnly_Lent_all_labels.pdf",units="cm",height=24,width=25)
+
+
+
+
