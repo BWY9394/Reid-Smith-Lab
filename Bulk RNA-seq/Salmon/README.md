@@ -283,7 +283,6 @@ You then run the below:
 ```r
 # Returns TRUE if every expected file is present. So each rowname will be what is named to your salmon output abundnace/count/readlength per sample, as well as where that is stored, so should not have ANY  mismatches. 
 all(file.exists(files)) #If FALSE, do not proceed until the file -> filename link is fixed and returns TRUE
-all(file.exists(files))
 ```
 This checks if your file paths to sample ID for naming samples is correct i.e. For ZBF1 at the supposed path of ZBF1_quant/quant.sf, does it exist.
 
@@ -422,113 +421,87 @@ tibble [88 × 8] (S3: tbl_df/tbl/data.frame)
  ZBFmetadata <- metadata %>%
   filter(Project == "Zn Binding and Filamentation") #filter out for just ZBF experiment
 head(ZBFmetadata)
-
-
-
-
-
-
-
-
-Next, you will also want to set up some metadata for 1. renaming your files from 
-
-
-
-
-
-
-
-
-
 ```
-### 3. Now set up filepaths to tell tximport where to look in to get your .sf files
+Which gives:
 ```r
-folders <-  data.frame(folder_names=list.files("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/ZBF1_ZBF28_ZBF_2025/quantsZBF1_ZBF28/"))
-getwd()
-write.csv(folders,file="filenames.csv",row.names=FALSE)
-folders = read.csv("filenames.csv", header = TRUE)
-folders = as.character(folders$folder_names)
-folders <- gtools::mixedsort(folders)
-folders
-#generate a data frame with all filesnames and paths
-files = file.path( folders, "quant.sf")
-files
+# A tibble: 6 × 8
+  Project                      `Exp Sample ID` `RNA Sample Code` Description   `Identifying Allele` Treatment Day   `Plant Age`
+  <chr>                        <chr>           <chr>             <chr>         <chr>                <chr>     <chr>       <dbl>
+1 Zn Binding and Filamentation ZBF1            ZBF1              VuFUN WT 13.… WT13                 Spec neg… NA             21
+2 Zn Binding and Filamentation ZBF2            ZBF2              VuFUN WT 13.… WT13                 Spec neg… NA             21
+3 Zn Binding and Filamentation ZBF3            ZBF3              VuFUN WT 13.… WT13                 Spec neg… NA             21
+4 Zn Binding and Filamentation ZBF4            ZBF4              VuFUN WT 13.… WT13                 Spec neg… NA             21
 ```
+### 3.2 Extracting raw counts + TPM from salmon object
 
-Done correctly, it'll look like:
+First, we create some headers for the data frame where counts will be saved into:
 ```r
-> files
- [1] "ZBF1_quant/quant.sf"  "ZBF2_quant/quant.sf"  "ZBF3_quant/quant.sf"  "ZBF4_quant/quant.sf"  "ZBF5_quant/quant.sf"  "ZBF6_quant/quant.sf"  "ZBF7_quant/quant.sf" 
- [8] "ZBF8_quant/quant.sf"  "ZBF9_quant/quant.sf"  "ZBF10_quant/quant.sf" "ZBF11_quant/quant.sf" "ZBF12_quant/quant.sf" "ZBF13_quant/quant.sf" "ZBF14_quant/quant.sf"
-[15] "ZBF15_quant/quant.sf" "ZBF16_quant/quant.sf" "ZBF17_quant/quant.sf" "ZBF18_quant/quant.sf" "ZBF19_quant/quant.sf" "ZBF20_quant/quant.sf" "ZBF21_quant/quant.sf"
-[22] "ZBF22_quant/quant.sf" "ZBF23_quant/quant.sf" "ZBF24_quant/quant.sf" "ZBF25_quant/quant.sf" "ZBF26_quant/quant.sf" "ZBF27_quant/quant.sf" "ZBF28_quant/quant.sf"
+# Create column headers by combining "counts" prefix with sample descriptions from metadata
+# Output will be "counts.Description1", "counts.Description2", etc.
+header <- c("locusName", c(paste("counts", ZBFmetadata$Description, sep = ".")))
+
+# Remove the "VuFUN " prefix from all header names to simplify column names
+# This cleans up unnecessary text that may have been part of the original metadata descriptions
+header <- str_remove(header, pattern = "VuFUN ")
+
+# Display the cleaned headers to verify the changes
+header
+```
+Output:
+```r
+> header
+ [1] "locusName"            "counts.WT 13.01"      "counts.WT 13.02"      "counts.WT 13.03"      "counts.WT 13.04"     
+ [6] "counts.WT 15.02"      "counts.WT 15.03"      "counts.WT 15.05"      "counts.WT 15.10"      "counts.H-A 11.04"    
+[11] "counts.H-A 11.05"     "counts.H-A 11.06"     "counts.H-A 11.07"     "counts.H-A 3.01"      "counts.H-A 3.04"     
+[16] "counts.H-A 3.08"      "counts.H-A 3.09"      "counts.A-D M-D 17.01" "counts.A-D M-D 17.02" "counts.A-D M-D 17.08"
+[21] "counts.A-D M-D 17.10" "counts.Double 21.05"  "counts.Double 21.07"  "counts.Double 21.08"  "counts.Double 21.09" 
+[26] "counts.Double 19.02"  "counts.Double 19.05"  "counts.Double 19.06"  "counts.Double 19.07
 ```
 
-### 4. Now you're ready to extract out the necessary info from your sf files
+Next, we extract the counts from the dataframe with all salmon data:
 ```r
-#now do tximport
-txi.salmon.tsv = tximport(files,
-                          type = "salmon",
-                          tx2gene = tx2gene,
-                          dropInfReps = TRUE,
-                          countsFromAbundance = "no")
+# Extract only the count columns from the final dataframe
+# grep('counts.', colnames(final)) finds all column indices that contain "counts." in their name
+counts <- data.frame(final[, grep('counts.', colnames(final))])
 
+# Check current column names (may include an unwanted "countsFromAbundance" column)
+colnames(counts)
 
-#save into dataframe
-final <- data.frame(txi.salmon.tsv)
+# Add a 'locusName' column from the row names and remove the last column (column 29)
+# cbind() combines the new locusName column with the existing data
+# counts[,-29] removes the 29th column which is likely the unwanted countsFromAbundance column
+counts <- cbind(locusName = rownames(counts), counts[, -29])
+
+# Verify the column names after adding locusName and removing the extra column
+colnames(counts)
+
+# Rename all columns using the cleaned header vector created earlier
+# This replaces the default/messy column names with the standardized format
+colnames(counts) <- header
+
+#Save output
+write.csv( counts, file= "ZBFcounts.csv", row.names=F, quote=F)
 ```
-An issue is that your sample names may not be informative and correct for downstream processing (i.e. they are named ZBF1, ZBF2 etc. which does not result in correct groupings later)
 
-### 5. Adding some metadata information into saved headers for sanity
+So what you're saving has something like:
+
+| locusName       | counts.WT 13.01 | counts.WT 13.02 | counts.WT 13.03 | counts.WT 13.04 | counts.WT 15.02 | counts.WT 15.03 |
+|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| Vigun01g000100  | 672.485         | 702.047         | 757.798         | 878.311         | 831.828         | 818.215         |
+
+Now repeat for TPMs
 ```r
-# create headers
-header = c(paste("TPM.", folders,sep=""), paste("counts.", folders,sep=""), paste("length.", folders,sep=""), "countsFromAbundance")
-print(header)
-datacheckheader <- data.frame(final=colnames(final),header=header)
-
-#save now so that you can add metadata in later easily and align with current sample names
-write.csv( datacheckheader, file= "ZBF1_28_metadata.csv", row.names=F, quote=F)
-#just check that things line up
-
-#now change header names
-colnames(final) = header
-colnames(final)
-
-#add in the locus
-final$locusName <- rownames(final)
-#View(final)
-final <- final[,c(86,1:85)]
-
-#load metadata
-metadata <- readxl::read_xlsx("Z:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/01.RawData/Copy of Sample Register.xlsx")
-colnames(metadata)
-
-ZBFmetadata <- (dplyr::filter(metadata,str_detect(`Exp Sample ID`, "ZBF")))
-
-#extract TPM
 header=(c("locusName", c(paste("TPM",ZBFmetadata$Description, sep=".")))
 )
 header <- str_remove(header, pattern= "VuFUN ")
 header
-TPM = data.frame(final[,grep('TPM.', colnames(final))])
+colnames(final)
+TPM <-  data.frame(final[,grep('abundance', colnames(final))])
+colnames(TPM)
 TPM <- cbind(locusName = rownames(TPM), TPM)
+colnames(TPM)
 colnames(TPM)=header
 View(TPM)
 write.csv( TPM, file= "ZBFTPM.csv", row.names=F, quote=F)
-
-
-#extract only counts and save
-header=(c("locusName", c(paste("counts",ZBFmetadata$Description, sep=".")))
-)
-header <- str_remove(header, pattern= "VuFUN ")
-header
-counts = data.frame(final[,grep('counts.', colnames(final))])
-counts <- cbind(locusName = rownames(counts), counts)
-counts
-colnames(counts)=header
-View(counts)
-write.csv( counts, file= "ZBFcounts.csv", row.names=F, quote=F)
 ```
-
-
 
