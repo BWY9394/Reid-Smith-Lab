@@ -537,12 +537,12 @@ a=ggplot(df_long, aes(x = Treatment, y = Count, fill = Direction)) +
         axis.text.y = element_text(size = 15, vjust =0.5, face = "bold"),
         strip.text.x = element_text(size = 15, face="bold", margin = margin(0.1,0,0.1,0, "cm")),
         panel.grid.major.x = element_blank(),
-        panel.grid.minor.y = element_blank()+
+        panel.grid.minor.y = element_blank(),
           theme(legend.key.size = unit(15, 'cm'), #change legend key size
                 legend.key.height = unit(15, 'cm'), #change legend key height
                 legend.key.width = unit(15,'cm'), #change legend key width
                 legend.title = element_text(size=14), #change legend title font size
-                legend.text = element_text(size=10))+ #change legend text font size
+                legend.text = element_text(size=10)), #change legend text font size
   theme(axis.text.x = element_text(angle = 45, hjust = 1)))
 a
 
