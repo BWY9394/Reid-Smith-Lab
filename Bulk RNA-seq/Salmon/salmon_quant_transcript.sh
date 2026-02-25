@@ -16,12 +16,17 @@
 #module load
 module load Salmon/1.4.0-GCC-11.2.0
 
-#Run salmon quant
+#This script you are working from a directory containing Raw/ZBF/ZBF{1..28}, so make sure you are in the correct directory 
+
+
+#Run salmon quant. Alter /ZBF/ZBF{1..28} depending on your file structure
 
 for fn in Raw/ZBF/ZBF{1..28}; do
   samp=$(basename "${fn}")
   echo "Processing sample ${samp}"
-
+  #fn="Raw/ZBF/ZBF1"
+  #basename removes the directory path and keeps only the last part.
+  #samp=ZBF1
   # -l A: salmon auto-detects library type (stranded/unstranded)
   # -1: forward reads
   # -2: reverse reads (ignore if single-end)
@@ -34,7 +39,7 @@ for fn in Raw/ZBF/ZBF{1..28}; do
     -2 "${fn}/${samp}_2.fq.gz" \
     -p 8 --validateMappings -o "quantsZBF1_ZBF28/${samp}_quant"
 done
-
+   #-1 = Raw/ZBF/ZBF1/ZBF1_1.fq.gz
 
 # Now make an output file
 echo -e "Sample\tNumReads\tNumMapped\tPercentMapped" > quantsZBF1_ZBF28/salmon_read_summary_ZBF1_ZBF28.tsv
@@ -55,4 +60,3 @@ done
 
 # Optional: email summary to yourself
 mail -s "Salmon Quant Finished" -a quantsZBF1_ZBF2/salmon_read_summary_ZBF1_ZBF28.tsv BWeeYang@ltu.edu.au <<< "All samples finished. See attached summary."
-
