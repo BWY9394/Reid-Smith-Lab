@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --time=10:00:00
+#SBATCH --time=10:00:00 #adjust to 5 days if very large genome e.g. faba 13gb...
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=12
-#SBATCH --mem=32G
+#SBATCH --mem=32G #use 256G for very large genomes e.g. faba 13gb...
 #SBATCH --job-name="salidx"
-#SBATCH --partition=day
+#SBATCH --partition=day #adjust to week partition if very large genome e.g. faba 13gb...
 
 #Available salmon versions
 #Salmon/1.4.0-GCC-11.2.0
@@ -25,7 +25,9 @@
 #sed -i.bak -e 's/>//g' decoysVu.txt
 
 #Along with the list of decoys salmon also needs the concatenated transcriptome and genome reference file for index. NOTE: the genome targets (decoys) should come after the transcriptome targets in the reference
-#cat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz ./Genomics/Vunguiculata_540_v1.0.softmasked.fa.gz > Vunguiculata_540_v1.0.gentrome.fa.gz
+#cat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz \ ./Genomics/Vunguiculata_540_v1.0.softmasked.fa.gz \ > Vunguiculata_540_v1.0.gentrome.fa.gz
+#cat ./Genomics/Vfaba_824_v1.1.transcript.fa.gz \    ./Genomics/Vfaba_824_v1.0.softmasked.fa.gz \    > Vfaba_824_v1.1.gentrome.fa.gz
+#zcat Vfaba_824_v1.1.gentrome.fa.gz | head -n 5 #this checks if you have sensible concatrated output
 
 #module load
 module load Salmon/1.4.0-GCC-11.2.0
@@ -34,4 +36,4 @@ module load Salmon/1.4.0-GCC-11.2.0
 #-t = transcripts (your cDNA file) #-i = index directory   --gencode
 #y ou don't need the gencode:  zcat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz | head -n 5  will display entry of your gene. If there is no "|" pipe, you're good e.g. >ENST00000335137.4|ENSG000001234| means need gencode
 #output
-salmon index -t Vunguiculata_540_v1.0.gentrome.fa.gz -d decoysVu.txt -p 12 -i salmon_indexVu
+salmon index -t Vunguiculata_540_v1.0.gentrome.fa.gz -d decoysVu.txt -p 12 -i salmon_indexVu - k 31

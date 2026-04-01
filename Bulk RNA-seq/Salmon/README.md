@@ -70,11 +70,63 @@ cat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz \
 
 ### Module load
 
+Now we are ready to index!
+We have:
+1. decoysVu.txt: list of decoys
+2. Vunguiculata_540_v1.0.gentrome.fa.gz: concatenated transcriptome and genome file for index.
+
+You now have a choice of running the below  as individual lines straight up in the HPC, but I would not recommend it- instead run it as a bash .sh file. Remember, you need to be in the directory where your files are i.e. decoysVu.txt location
+
 ```bash
-module load Salmon/1.4.0-GCC-11.2.0
+sbatch /data/group/reidlab/project/Ben/scripts/salmon_index.sh
 ```
 
-### Index command
+Inside the .sh file you will find:
+
+```bash
+#!/bin/bash
+SBATCH --time=10:00:00 #adjust to 5 days if very large genome e.g. faba 13gb...
+SBATCH --nodes=1
+SBATCH --cpus-per-task=12
+SBATCH --mem=32G #use 256G for very large genomes e.g. faba 13gb...
+SBATCH --job-name="salidx"
+SBATCH --partition=day #adjust to week partition if very large genome e.g. faba 13gb...
+
+#Available salmon versions
+#Salmon/1.4.0-GCC-11.2.0
+#Salmon/1.4.0-gompi-2020b
+
+#Reference for pre-processings steps
+#https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/
+
+#pre-processing steps that you can just run in HPC terminal. Just contain here for easy reference
+#raw files
+#1. Genome:
+#Vunguiculata_540_v1.0.softmasked.fa.gz
+#2  Transcripts (All splice variants),UTRs and exons:
+#Vunguiculata_540_v1.2.transcript.fa.gz
+
+#Salmon indexing requires the names of the genome targets, so that with:
+#grep "^>" <(gunzip -c ./Genomics/Vunguiculata_540_v1.0.softmasked.fa.gz) | cut -d " " -f 1 > decoysVu.txt
+#sed -i.bak -e 's/>//g' decoysVu.txt
+
+#Along with the list of decoys salmon also needs the concatenated transcriptome and genome reference file for index. NOTE: the genome targets (decoys) should come after the transcriptome targets in the reference
+#cat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz \ ./Genomics/Vunguiculata_540_v1.0.softmasked.fa.gz \ > Vunguiculata_540_v1.0.gentrome.fa.gz
+#cat ./Genomics/Vfaba_824_v1.1.transcript.fa.gz \    ./Genomics/Vfaba_824_v1.0.softmasked.fa.gz \    > Vfaba_824_v1.1.gentrome.fa.gz
+#zcat Vfaba_824_v1.1.gentrome.fa.gz | head -n 5 #this checks if you have sensible concatrated output
+
+#module load
+module load Salmon/1.4.0-GCC-11.2.0
+
+#Index
+#-t = transcripts (your cDNA file) #-i = index directory   --gencode
+#y ou don't need the gencode:  zcat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz | head -n 5  will display entry of your gene. If there is no "|" pipe, you're good e.g. >ENST00000335137.4|ENSG000001234| means need gencode
+#output
+salmon index -t Vunguiculata_540_v1.0.gentrome.fa.gz -d decoysVu.txt -p 12 -i salmon_indexVu - k 31
+
+```
+
+### Index command Explanation
 
 ```bash
 salmon index \
@@ -111,6 +163,7 @@ zcat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz | head -n 5
   * In other words, creating an index for a reference sequence allows it to more rapidly place a read on that sequence at a location where it knows at least a piece of the read matches perfectly or with only a few mismatches.
   * By jumping right to these spots in the genome, rather than trying to fully align the read to every place in the genome, it saves a ton of time.
   * Also, once you index once, you shouldn't need to index it again for other mapping runs for the same species with the same pipeline.
+* For large genomes i.e. Faba which has 13Gbp, you will need to up the memory. Cowpea, which has only 0.613Gbp...
 
 ---
 
