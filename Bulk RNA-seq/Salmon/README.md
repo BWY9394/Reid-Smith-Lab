@@ -143,7 +143,7 @@ salmon index \
 * `-d`: decoy list (genome sequences)
 * `-p`: number of CPU threads
 * `-i`: output index directory
-* `-k`: tells Salmon how many k-mers to build index from transcripts. Good balance of  accuracy vs efficiency, especially for large genomes. 31 is minimum recommended 
+* `-k`: tells Salmon how many k-mers to build index from transcripts. Good balance of  accuracy vs efficiency, especially for large genomes. 31 is minimum recommended.
 
 > **Important:** `--gencode` **not used** — headers do **not** contain GENCODE-style pipe-separated IDs (e.g., `>ENST00000335137.4|ENSG000001234`), so Salmon will correctly use the first whitespace-delimited token as transcript ID.
 
