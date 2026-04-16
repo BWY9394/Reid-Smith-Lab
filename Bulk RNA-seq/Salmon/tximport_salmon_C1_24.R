@@ -5,8 +5,22 @@ install.packages("styler")
 # Purpose: tximport and DeSeq2 on vufun mutants, along with heatmap and venns, from Salmon workflow.
 # Prelim data comparisons: For each timepoint, per genotype, what is the difference with +N
 # Github: https://github.com/BWY9394/Reid-Smith-Lab/tree/main/Bulk%20RNA-seq/Salmon
+# oK, now we want to run more analysis
+save.image(file = "vufun.RData")
+load(file = "vufun.RData")
 
-# Step 1: Load packages and set working directory
+# Steps 1- 10 are for extracting counts, TPM and associated stats after salmon quant step on HPC, plus setting up folder paths
+# Steps 12 - 15 are the actual DEG analysis steps using DESeq2
+# If you just want barplots for TPMs, Just run Step 14.
+# Recommend to start from Step 16 if you have already run your DEG analysis, i.e. Steps 1-15, and have usable dataframes
+# Step 16 is where we collect all the individually collected DEG tables into their respective consolidated dataframes, e.g. vufun vs WT, and vufun/fun response to +N
+# From Step 17, we start plotting heatmaps from curated gene lists (i.e. from Roy et al. 2020 paper)
+# From Step 18, we incorporate in ZBF RNA-seq experimental information
+
+# From Step X, we have completed our analysis and have all contrasts that we desire, so here is where we can then start making a very comprehensive database that incorporates information from vufun TC experiment, ZBF experiment, and cross-ref with DAP-seq datasets
+
+
+##### Step 1: Load packages and set working directory #####
 library(tidyverse)
 library(tximport)
 library(DESeq2)
@@ -16,44 +30,45 @@ library(ggrepel)
 library(seqinr)
 library(ashr)
 setwd("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/C1_C24_VuFUN_timecourse_2025/quantsC1_C24/")
+setwd("Z:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/C1_C24_VuFUN_timecourse_2025/quantsC1_C24/")
 getwd()
 
 
+##### Step 2: generate filenames/folderpaths  ####
 
-# Step 2: generate filenames/folderpaths
-folders <-  data.frame(folder_names=list.files("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/C1_C24_VuFUN_timecourse_2025/quantsC1_C24"))
+folders <- data.frame(folder_names = list.files("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/C1_C24_VuFUN_timecourse_2025/quantsC1_C24"))
 folders
 getwd()
-write.csv(folders,file="filenames.csv",row.names=FALSE)
-#Step 2: Start here if rerunnign analayis
-folders = read.csv("filenames.csv", header = TRUE)
-folders = as.character(folders$folder_names)
+write.csv(folders, file = "filenames.csv", row.names = FALSE)
+# Start here if rerunning DEG analayis
+folders <- read.csv("filenames.csv", header = TRUE)
+folders <- as.character(folders$folder_names)
 folders <- gtools::mixedsort(folders)
 folders
-#generate a data frame with all filesnames and paths
-files = file.path(folders, "quant.sf")
+# Generate a data frame with all filesnames and paths
+files <- file.path(folders, "quant.sf")
 files
 names(files) <- paste0("C", 1:24) # Assign sample names to each file. These names MUST match rownames in the sample metadata (sampleTable)
 files
 getwd()
 
-# Step 4: Sanity check to confirm that all quant.sf files exist
+##### Step 3: Sanity check to confirm that all quant.sf files exist  #####
 # Returns TRUE if every expected file is present. So each rowname will be what is named to your salmon output abundnace/count/readlength per sample, as well as where that is stored, so should not have ANY  mismatches.
 # If FALSE, do not proceed until the file -> filename link is fixed and returns TRUE
 all(file.exists(files))
 head(files, n = 24)
 
-# Step 5: Load and clean annotations for tx2gene dataframe that tximport requires
+##### Step 4: Load and clean annotations for tx2gene dataframe that tximport requires  #####
 annotations <- read.delim("P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE) # 54484 annotated transcripts
 data.table::uniqueN(annotations$locusName) # Number of unique transcripts, discards repeated rows per transcript #31948
 tx2gene <- annotations[, c(3, 2)] # save annotations into df for tximport to summarize gene-level from transcript isoforms
 str(tx2gene)
 any(duplicated(tx2gene[, 1])) # if not false, means you have MULTIPLE column 1 rownames, which means raw annot is NOT clean
 
-# Step 5 Optional: Getting additional metrics out such as no. transcript isoforms per gene
+##### Step 5 Optional: Getting additional metrics out such as no. transcript isoforms per gene ######
 # now, if you're actually not sure whether your annotations files is set up correctly, run the below
 transcript_fasta_data <- read.fasta(file = "P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.transcript.fa.gz", as.string = TRUE) # 54484 annotated transcripts
-#
+
 transcript_fasta_data_df <- do.call(rbind, lapply(transcript_fasta_data, function(seq_obj) {
   data.frame(
     transcriptName = attr(seq_obj, "name"),
@@ -72,39 +87,41 @@ annotations_GL <- annotations %>%
   dplyr::distinct(locusName, .keep_all = TRUE) # 31948 more accurate because some genetranscripts might not have .1 read. Some start with .2
 annotations_GL <- left_join(annotations_GL, duplicate_counts_df_counts, by = "locusName", relationship = "one-to-one") # Could be useful to know also how many isoforms per gene
 write.csv(annotations_GL,
-          file = "P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info_GL.csv",
-          row.names = FALSE
+  file = "P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info_GL.csv",
+  row.names = FALSE
 )
+annotations_GL <- read.csv(file = "P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info_GL.csv", header = TRUE)
 
 
-# Step 6: Tximport to summarize counts,TPM, avgereadlngth on a gene-level basis
-#navigate to folders path
+##### Step 6: Tximport to summarize counts,TPM, avgereadlngth on a gene-level basis ######
+# navigate to folders path
 setwd("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/C1_C24_VuFUN_timecourse_2025/quantsC1_C24/")
-txi.salmon.tsv = tximport(files,
-                            type = "salmon",
-                            tx2gene = tx2gene,
-                            dropInfReps = TRUE,
-                            countsFromAbundance = "no") # don't worry about this too much, if you are using DESeq2, it will do its own thing with count normalization. And you will use TPMs for gene abundance anyway.
+txi.salmon.tsv <- tximport(files,
+  type = "salmon",
+  tx2gene = tx2gene,
+  dropInfReps = TRUE,
+  countsFromAbundance = "no"
+) # don't worry about this too much, if you are using DESeq2, it will do its own thing with count normalization. And you will use TPMs for gene abundance anyway.
 
 final <- data.frame(txi.salmon.tsv) # save into dataframe. Has TPM, counts, avge read length all in one df. Will extract into single dataframes
 str(final)
 colnames(final)
 str(files)
 
-# Step 7: Load in relevant metadata for this experiment per sample, so as to match with colnames of saved tximport object
+##### Step 7: Load in relevant metadata for this experiment per sample, so as to match with colnames of saved tximport object #####
 metadata <- readxl::read_xlsx("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/01.RawData/Copy of Sample Register.xlsx") # load meta data in
 str(metadata)
 metadata$Project <- factor(metadata$Project)
 levels(metadata$Project)
 vufunmetadata <- metadata %>%
-  filter(Project == "vufun vs WT +/- N timecourse" ) # filter out for just vufun N tc exp experiment
+  filter(Project == "vufun vs WT +/- N timecourse") # filter out for just vufun N tc exp experiment
 colnames(vufunmetadata)
 
 
 # REMINDER. At this step make sure that your metadata is 100% correct or you will be running incorrect DEGs and outputting incorrect data
 
-# Step 8: Save Counts
-header <- c("locusName", c(paste("counts", vufunmetadata$CombID,vufunmetadata$Rep, sep = "."))) # Create column headers by combining "counts" prefix with sample descriptions from metadata. Output will be "counts.Description1", "counts.Description2", etc.
+##### Step 8: Save Counts #####
+header <- c("locusName", c(paste("counts", vufunmetadata$CombID, vufunmetadata$Rep, sep = "."))) # Create column headers by combining "counts" prefix with sample descriptions from metadata. Output will be "counts.Description1", "counts.Description2", etc.
 header
 counts <- data.frame(final[, grep("counts.", colnames(final))]) # Extract only the count columns from the final dataframe
 colnames(counts) # Check current column names (may include an unwanted "countsFromAbundance" column)
@@ -116,8 +133,8 @@ str(counts)
 
 write.csv(counts, file = "vufun_TC_Ntrt_rawcounts.csv", row.names = FALSE) # Save output
 
-# Step 9: Save TPMs
-header <- c("locusName", c(paste("TPM", vufunmetadata$CombID,vufunmetadata$Rep, sep = ".")))
+##### Step 9: Save TPMs ######
+header <- c("locusName", c(paste("TPM", vufunmetadata$CombID, vufunmetadata$Rep, sep = ".")))
 header
 colnames(final)
 TPM <- data.frame(final[, grep("abundance", colnames(final))])
@@ -128,17 +145,19 @@ colnames(TPM) <- header
 View(TPM)
 write.csv(TPM, file = "vufun_TC_Ntrt_TPM.csv", row.names = F, quote = F)
 TPM <- read.csv("vufun_TC_Ntrt_TPM.csv")
-# Step 10: Generate some stats for TPM
+
+
+##### Step 10: Generate some stats for TPM #####
 TPM_long <- pivot_longer(TPM,
-                         cols = -locusName,
-                         names_to = "Sample",
-                         values_to = "TPM"
+  cols = -locusName,
+  names_to = "Sample",
+  values_to = "TPM"
 )
 head(TPM_long$Sample)
 colnames(TPM)
 TPMheaders <- colnames(TPM[, -1])
 
-vufunmetadata_tpm <- data.frame(Sample = TPMheaders, vufunmetadata[, c("Treatment","Day","Rep","Identifying Allele","Description","CombID")])
+vufunmetadata_tpm <- data.frame(Sample = TPMheaders, vufunmetadata[, c("Treatment", "Day", "Rep", "Identifying Allele", "Description", "CombID")])
 vufunmetadata_tpm <- left_join(TPM_long, vufunmetadata_tpm, by = "Sample")
 View(vufunmetadata_tpm)
 colnames(vufunmetadata_tpm)
@@ -146,7 +165,7 @@ write.csv(TPM, file = "vufunTPM_longformat_metadata.csv", row.names = F, quote =
 
 TPM_mean_comb <- plyr::ddply(
   vufunmetadata_tpm,
-  c("locusName", "Identifying.Allele","Day","Treatment","CombID"),
+  c("locusName", "Identifying.Allele", "Day", "Treatment", "CombID"),
   summarise,
   mean = mean(TPM, na.rm = TRUE),
   sd   = sd(TPM, na.rm = TRUE),
@@ -165,7 +184,7 @@ writexl::write_xlsx(
 TPM_mean_comb <- readxl::read_xlsx("vufun_TPMstats.xlsx")
 
 
-# Step 11: Last component needed for DESeq analysis, which is to provide experimental setup details in relation to experiment treatment factors
+##### Step 11: Last component needed for DESeq analysis, which is to provide experimental setup details in relation to experiment treatment factors #####
 filenames <- file.path(folders, "quant.sf") # we created folders earlier, object containing folder names which hold .sf files
 filenames # so now we have filepaths that are correct for each sample
 sampleNames <- sub("_quant/quant.sf", "", filenames)
@@ -178,50 +197,48 @@ sampleTable
 sampleTable <- data.frame(sampleTable)
 sampleTable$`RNA Sample Code` <- colnames(txi.salmon.tsv$counts)
 sampleTable_full <- sampleTable %>%
-  left_join(vufunmetadata[,c("Treatment","Day","Identifying Allele","RNA Sample Code")],by="RNA Sample Code") %>%
+  left_join(vufunmetadata[, c("Treatment", "Day", "Identifying Allele", "RNA Sample Code")], by = "RNA Sample Code") %>%
   column_to_rownames("RNA Sample Code")
 all(rownames(sampleTable_full) == colnames(txi.salmon.tsv$counts))
 sampleTable_full # #  sampleTable, which contains a data frame of sample ID assigned per sample when building txi.salmon.tsv object in the rownames, while the first (and only) columns consist of the experiment treatment factor
-sampleTable_full[] <- lapply(sampleTable_full, as.factor) #make everything a factor
+sampleTable_full[] <- lapply(sampleTable_full, as.factor) # make everything a factor
 str(sampleTable_full)
 sampleTable_full <- dplyr::rename(sampleTable_full, `Genotype` = "Identifying Allele")
 
 
-
-# Step 12.1: Carry out DEG analysis
+##### Defunct Step 12.1: Carry out DEG analysis do not run#####
+# defunct, don't utilize this approach
 # Use CombID as the single factor (it already encodes all condition info)
 colnames(sampleTable_full)
-ddsfullexpfactors <- DESeqDataSetFromTximport(txi.salmon.tsv, 
-                                sampleTable_full, 
-                                ~ Treatment + Day + Genotype + Genotype:Treatment+Day:Treatment)
+ddsfullexpfactors <- DESeqDataSetFromTximport(
+  txi.salmon.tsv,
+  sampleTable_full,
+  ~ Treatment + Day + Genotype + Genotype:Treatment + Day:Treatment
+)
 
 ddscompl <- DESeq(ddsfullexpfactors)
 resultsNames(ddscompl)
 
-rescomp <- results(ddscompl, name =c("Genotype_WT..IT86D.1010._vs_vufun2","Genotype_WT..IT86D.1010._vs_vufun2"),alpha=0.05)
-)
+rescomp <- results(ddscompl, name = c("Genotype_WT..IT86D.1010._vs_vufun2", "Genotype_WT..IT86D.1010._vs_vufun2"), alpha = 0.05)
 
 summary(rescomp)
 
 
+# Step 12 workaround: Carry out DEG analysis or pre-grouped samples.
 
-#Step 12 workaround: Carry out DEG analysis or pre-grouped samples.
-
-dds <- DESeqDataSetFromTximport(txi.salmon.tsv, 
-                                              sampleTable_full, 
-                                              ~ CombID)
+dds <- DESeqDataSetFromTximport(
+  txi.salmon.tsv,
+  sampleTable_full,
+  ~CombID
+)
 
 dds <- DESeq(dds)
 resultsNames(dds)
 levels(dds$CombID)
 
 
-
-
-
-
 # Step 12.1 test 1. Can I do results extraction despite not specifying ref level when doing DE analysis?
-resD1 <- results(dds, contrast=list(c("Treatment_No.Nitrate_vs_Nitrate..","WT_D3_Nplus"),alpha=0.05))
+resD1 <- results(dds, contrast = list(c("Treatment_No.Nitrate_vs_Nitrate..", "WT_D3_Nplus"), alpha = 0.05))
 summary(resD1)
 
 
@@ -242,51 +259,38 @@ results_list <- lapply(combos, function(pair) {
 })
 
 results_list <- lapply(combos, function(pair) {
-  res <- results(dds, contrast = c("CombID", pair[1], pair[2]),alpha = 0.05)
+  res <- results(dds, contrast = c("CombID", pair[1], pair[2]), alpha = 0.05)
   return(res)
 })
 
 summary(results_list[[28]])
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Step 12: Carry out DEG analysis, with WT13 AND WT15 as a reference.
+##### Step 12: Carry out DEG analysis, from tximport object. #####
 # Use CombID as the single factor (it already encodes all condition info)
-dds <- DESeqDataSetFromTximport(txi.salmon.tsv, 
-                                sampleTable_full, 
-                                ~CombID)
+dds <- DESeqDataSetFromTximport(
+  txi.salmon.tsv,
+  sampleTable_full,
+  ~CombID
+)
 
-dds <- DESeq(dds, contrasts=c)
+dds <- DESeq(dds, contrasts = c)
 
 
-resD1 <- results(dds, contrast=c("CombID","WT_D3_Nplus","vufun2_D3_Nminus"))
+resD1 <- results(dds, contrast = c("CombID", "WT_D3_Nplus", "vufun2_D3_Nminus"))
 
 
 summary(resD1)
 
 levels(sampleTable_full$CombID)
 
-# Step 13: Global Transcriptomic response
+##### Step 13: Global Transcriptomic response PCAs from normalized counts ####
 vsd <- vst(dds, blind = TRUE) # apply variance stabilizing transformation (VSD) to reduce dependence of variance on mean experession (more homoscedastic). Corrects for natural high variance at high experssion levels, low variance at low experience levels, making data visualization (PCA/Heatmaps) clearer.
-plotPCA(vsd, intgroup = c("CombID"), returnData = FALSE, pcsToUse = c(1,2)) # raw PCA. Good, but want more control over certain variables
+plotPCA(vsd, intgroup = c("CombID"), returnData = FALSE, pcsToUse = c(1, 2)) # raw PCA. Good, but want more control over certain variables
 pca_data <- plotPCA(
   vsd,
   intgroup = "CombID",
-  pcsToUse = c(1,2),
+  pcsToUse = c(1, 2),
   returnData = TRUE
 ) # build a better PCA, so first save pca data into dataframe for PC1 nad PC2
 
@@ -300,7 +304,7 @@ percent_var <- round(100 * attr(pca_data, "percentVar"), 1)
 levels(pca_data$Identifying.Allele)
 # subset(pca_data, !Identifying.Allele %in% c("WT13", "WT15"))
 
-PCA3 <- ggplot(pca_data, aes(PC1, PC3, color = Day ,shape = Treatment)) + # now create custom PCA
+PCA3 <- ggplot(pca_data, aes(PC1, PC3, color = Day, shape = Treatment)) + # now create custom PCA
   geom_point(
     size = 2.8,
     alpha = 0.85
@@ -333,7 +337,7 @@ PCA3 <- ggplot(pca_data, aes(PC1, PC3, color = Day ,shape = Treatment)) + # now 
     panel.grid.major.x = element_blank()
   )
 
-PCA1 <- ggplot(pca_data, aes(PC1, PC2, color = Day ,shape = Treatment)) + # now create custom PCA
+PCA1 <- ggplot(pca_data, aes(PC1, PC2, color = Day, shape = Treatment)) + # now create custom PCA
   geom_point(
     size = 2.8,
     alpha = 0.85
@@ -367,40 +371,44 @@ PCA1 <- ggplot(pca_data, aes(PC1, PC2, color = Day ,shape = Treatment)) + # now 
   )
 
 library(gridExtra)
-combinedPCA <- grid.arrange(PCA3,PCA1,nrow=1)
-ggsave(combinedPCA, file="ZBF_pca_comps.pdf",height=25,width=45, units="cm")
+combinedPCA <- grid.arrange(PCA3, PCA1, nrow = 1)
+ggsave(combinedPCA, file = "ZBF_pca_comps.pdf", height = 25, width = 45, units = "cm")
 
-# Step 14: Get normalized counts for each gene per sample. Can use for gene abundance comparisons
+##### Step 14: Get normalized counts for each gene per sample. Can use for gene abundance comparisons ####
 resnormcounts <- counts(dds, normalized = T)
 resnormcounts <- as.data.frame(resnormcounts)
 resnormcounts
 head(vufunmetadata$CombID, n = 24)
 colnames(resnormcounts) <- vufunmetadata$CombID
 colnames(resnormcounts)
-header <-  c(c(paste(vufunmetadata$CombID,vufunmetadata$Rep, sep = ".R"))) # Create column headers by combining "counts" prefix with sample descriptions from metadata. Output will be "counts.Description1", "counts.Description2", etc.
+header <- c(c(paste(vufunmetadata$CombID, vufunmetadata$Rep, sep = ".R"))) # Create column headers by combining "counts" prefix with sample descriptions from metadata. Output will be "counts.Description1", "counts.Description2", etc.
 colnames(resnormcounts) <- header
 resnormcounts <- resnormcounts %>%
   rownames_to_column("locusName")
 resnormcounts
 write.csv(resnormcounts, file = "vufun_norm_counts_results.csv", row.names = FALSE)
-
-#Ok now what if we want to plot some shizzzz
+# start here if just interested in barplots/skipping steps
+resnormcounts <- read.csv(file = "vufun_norm_counts_results.csv")
+# Ok now what if we want to plot some shizzzz
 RRgenes <- readxl::read_xlsx("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/Panfaba work/RobRoy_Vuadded.xlsx")
 colnames(RRgenes)
+metadata <- readxl::read_xlsx("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/01.RawData/Copy of Sample Register.xlsx")
+vufunmetadata <- metadata %>%
+  filter(Project == "vufun vs WT +/- N timecourse")
 RRgenes <- dplyr::rename(RRgenes, locusName = Vunguiculata)
 
 vuresnormcountslong <- pivot_longer(resnormcounts,
-                                  cols = -locusName,
-                                  names_to = "Sample",
-                                  values_to = "normcounts"
+  cols = -locusName,
+  names_to = "Sample",
+  values_to = "normcounts"
 )
 
-vunormcountheaders <- colnames(resnormcounts[,-1])
+vunormcountheaders <- colnames(resnormcounts[, -1])
 vunormcountheaders
-vumetadata_counts <- data.frame(Sample = vunormcountheaders, vufunmetadata[, c("RNA Sample Code","Identifying Allele","Treatment","Day","CombID","Rep")])
+vumetadata_counts <- data.frame(Sample = vunormcountheaders, vufunmetadata[, c("RNA Sample Code", "Identifying Allele", "Treatment", "Day", "CombID", "Rep")])
 
 vumetadata_counts <- left_join(vuresnormcountslong, vumetadata_counts, by = "Sample")
-vumetadata_counts$CombID <- factor(vumetadata_counts$CombID,levels=c("vufun2_D1_Nminus","vufun2_D1_Nplus","WT_D1_Nminus","WT_D1_Nplus","vufun2_D3_Nminus","vufun2_D3_Nplus","WT_D3_Nminus","WT_D3_Nplus" ) )
+vumetadata_counts$CombID <- factor(vumetadata_counts$CombID, levels = c("vufun2_D1_Nminus", "vufun2_D1_Nplus", "WT_D1_Nminus", "WT_D1_Nplus", "vufun2_D3_Nminus", "vufun2_D3_Nplus", "WT_D3_Nminus", "WT_D3_Nplus"))
 
 vutoplot <- vumetadata_counts %>%
   dplyr::filter(locusName %in% c("Vigun04g109900", "Vigun01g085000", "Vigun11g064200", "Vigun05g197300", "Vigun02g057800", "Vigun03g206900"))
@@ -413,7 +421,7 @@ ggplot(vutoplot, aes(x = CombID, y = normcounts)) +
   #  geom_text(aes(label=Rep))+
   facet_wrap(~`locusName`, nrow = 2, scales = "free") +
   labs(
-    title = "Normalized counts of select genes\nfor ZBF lines", y = "normalized counts", x = "ZBF line"
+    title = "Normalized counts of select genes\nfor VuFun lines", y = "normalized counts", x = "ZBF line"
   ) +
   theme_bw() +
   scale_color_manual(values = c("1" = "#4477AA", "2" = "#EE6677", "3" = "#228833", "4" = "#CCBB44")) +
@@ -436,20 +444,18 @@ ggplot(vutoplot, aes(x = CombID, y = normcounts)) +
   )
 
 
-#Heatmaps to plot for lfc
-
-
-# Step 15: Get DEG results (fyi log2foldchange > 0.0585 = fold change of 1.5)
+##### Step 15: Get DEG results for all comparisons (between genotypes and within genotypes). log-fold changes and adj p-vals ####
+# (fyi log2foldchange > 0.0585 = fold change of 1.5)
 # extra annotations table for nodulation genes
 RRgenes <- readxl::read_xlsx("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/Panfaba work/RobRoy_Vuadded.xlsx")
 colnames(RRgenes)
 RRgenes <- dplyr::rename(RRgenes, locusName = Vunguiculata)
 
-
+##### Step 15.1, within genotype response to +N #####
 # D1, vufun +N
 resultsNames(dds) # these are all the generated comparisons.
 
-resD1_vufun <- results(dds, contrast=c("CombID","vufun2_D1_Nplus","vufun2_D1_Nminus"),alpha=0.05)
+resD1_vufun <- results(dds, contrast = c("CombID", "vufun2_D1_Nplus", "vufun2_D1_Nminus"), alpha = 0.05) # the last field is what you are contrasting to i.e. fold change compared to N-minus conditions at D1 for vufun2.
 summary(resD1_vufun)
 OEresD1_vufun <- lfcShrink(dds, contrast = c("CombID", "vufun2_D1_Nplus", "vufun2_D1_Nminus"), type = "ashr", res = resD1_vufun)
 resD1_vufundf <- as.data.frame(resD1_vufun)
@@ -471,7 +477,7 @@ getwd()
 # D1, WT +N
 resultsNames(dds) # these are all the generated comparisons.
 
-resD1_WT <- results(dds, contrast=c("CombID","WT_D1_Nplus","WT_D1_Nminus"),alpha=0.05)
+resD1_WT <- results(dds, contrast = c("CombID", "WT_D1_Nplus", "WT_D1_Nminus"), alpha = 0.05)
 summary(resD1_WT)
 OEresD1_WT <- lfcShrink(dds, contrast = c("CombID", "WT_D1_Nplus", "WT_D1_Nminus"), type = "ashr", res = resD1_WT)
 summary(OEresD1_WT)
@@ -491,11 +497,10 @@ finresD1_WT$DEG <- ifelse(finresD1_WT$padj < 0.05, "Yes", "No")
 writexl::write_xlsx(finresD1_WT, path = "results_pvals_D1_WT_plusN_vs_minusN.xlsx")
 
 
-
 # D3, vufun +N
 resultsNames(dds) # these are all the generated comparisons.
 
-resD3_vufun <- results(dds, contrast=c("CombID","vufun2_D3_Nplus","vufun2_D3_Nminus"),alpha=0.05)
+resD3_vufun <- results(dds, contrast = c("CombID", "vufun2_D3_Nplus", "vufun2_D3_Nminus"), alpha = 0.05)
 summary(resD3_vufun)
 OEresD3_vufun <- lfcShrink(dds, contrast = c("CombID", "vufun2_D3_Nplus", "vufun2_D3_Nminus"), type = "ashr", res = resD3_vufun)
 summary(OEresD3_vufun)
@@ -516,12 +521,10 @@ writexl::write_xlsx(finresD3_vufun, path = "results_pvals_D3_vufun_plusN_vs_minu
 getwd()
 
 
-
-
 # D3, WT +N
 resultsNames(dds) # these are all the generated comparisons.
 
-resD3_WT <- results(dds, contrast=c("CombID","WT_D3_Nplus","WT_D3_Nminus"),alpha=0.05)
+resD3_WT <- results(dds, contrast = c("CombID", "WT_D3_Nplus", "WT_D3_Nminus"), alpha = 0.05)
 summary(resD3_WT)
 OEresD3_WT <- lfcShrink(dds, contrast = c("CombID", "WT_D3_Nplus", "WT_D3_Nminus"), type = "ashr", res = resD3_WT)
 summary(OEresD3_WT)
@@ -557,32 +560,139 @@ plotMA(OEresD3_WT, main = "D3,WT +N:\nWith Shrinkage", ylim = c(-4, 4))
 dev.off()
 
 
-#Step 16 Collect all dataframes for single genotype, per day, Treatment effects
+##### Step 15.2, between genotype responses, vufun vs. WT ####
+# D1, vufun vs WT, -N
+resultsNames(dds) # these are all the generated comparisons.
+
+resD1_minusN <- results(dds, contrast = c("CombID", "vufun2_D1_Nminus", "WT_D1_Nminus"), alpha = 0.05)
+summary(resD1_minusN)
+OEresD1_minusN <- lfcShrink(dds, contrast = c("CombID", "vufun2_D1_Nminus", "WT_D1_Nminus"), type = "ashr", res = resD1_minusN)
+resD1_minusNdf <- as.data.frame(resD1_minusN)
+resD1_minusNdf <- resD1_minusNdf %>%
+  rownames_to_column("locusName")
+OEresD1_minusNdf <- as.data.frame(OEresD1_minusN)
+OEresD1_minusNdf <- OEresD1_minusNdf %>%
+  rownames_to_column("locusName")
+OEresD1_minusNdf <- OEresD1_minusNdf %>%
+  dplyr::rename(l2FCshrunk = log2FoldChange, lfcshrunkSE = lfcSE)
+finresD1_minusN <- left_join(resD1_minusNdf, OEresD1_minusNdf[, c("locusName", "l2FCshrunk", "lfcshrunkSE")], by = "locusName")
+finresD1_minusN <- left_join(finresD1_minusN, annotations_GL[, c("locusName", "Best.hit.arabi.defline")], by = "locusName")
+finresD1_minusN <- left_join(finresD1_minusN, RRgenes[, c("locusName", "Gene Symbol", "Orthogroup", "Function", "Protein class/Molecular function")], by = "locusName")
+finresD1_minusN <- finresD1_minusN[order(finresD1_minusN$padj), ]
+finresD1_minusN$DEG <- ifelse(finresD1_minusN$padj < 0.05, "Yes", "No")
+writexl::write_xlsx(finresD1_minusN, path = "results_pvals_D1_minusN_vufun_vs_WT.xlsx")
+getwd()
+
+# D1, vufun vs WT, +N
+resultsNames(dds) # these are all the generated comparisons.
+
+resD1_plusN <- results(dds, contrast = c("CombID", "vufun2_D1_Nplus", "WT_D1_Nplus"), alpha = 0.05)
+summary(resD1_plusN)
+OEresD1_plusN <- lfcShrink(dds, contrast = c("CombID", "vufun2_D1_Nplus", "WT_D1_Nplus"), type = "ashr", res = resD1_plusN)
+resD1_plusNdf <- as.data.frame(resD1_plusN)
+resD1_plusNdf <- resD1_plusNdf %>%
+  rownames_to_column("locusName")
+OEresD1_plusNdf <- as.data.frame(OEresD1_plusN)
+OEresD1_plusNdf <- OEresD1_plusNdf %>%
+  rownames_to_column("locusName")
+OEresD1_plusNdf <- OEresD1_plusNdf %>%
+  dplyr::rename(l2FCshrunk = log2FoldChange, lfcshrunkSE = lfcSE)
+finresD1_plusN <- left_join(resD1_plusNdf, OEresD1_plusNdf[, c("locusName", "l2FCshrunk", "lfcshrunkSE")], by = "locusName")
+finresD1_plusN <- left_join(finresD1_plusN, annotations_GL[, c("locusName", "Best.hit.arabi.defline")], by = "locusName")
+finresD1_plusN <- left_join(finresD1_plusN, RRgenes[, c("locusName", "Gene Symbol", "Orthogroup", "Function", "Protein class/Molecular function")], by = "locusName")
+finresD1_plusN <- finresD1_plusN[order(finresD1_plusN$padj), ]
+finresD1_plusN$DEG <- ifelse(finresD1_plusN$padj < 0.05, "Yes", "No")
+writexl::write_xlsx(finresD1_plusN, path = "results_pvals_D1_plussN_vufun_vs_WT.xlsx")
+getwd()
+
+
+# D3, vufun vs WT, -N
+resultsNames(dds) # these are all the generated comparisons.
+
+resD3_minusN <- results(dds, contrast = c("CombID", "vufun2_D3_Nminus", "WT_D3_Nminus"), alpha = 0.05)
+summary(resD3_minusN)
+OEresD3_minusN <- lfcShrink(dds, contrast = c("CombID", "vufun2_D3_Nminus", "WT_D3_Nminus"), type = "ashr", res = resD3_minusN)
+resD3_minusNdf <- as.data.frame(resD3_minusN)
+resD3_minusNdf <- resD3_minusNdf %>%
+  rownames_to_column("locusName")
+OEresD3_minusNdf <- as.data.frame(OEresD3_minusN)
+OEresD3_minusNdf <- OEresD3_minusNdf %>%
+  rownames_to_column("locusName")
+OEresD3_minusNdf <- OEresD3_minusNdf %>%
+  dplyr::rename(l2FCshrunk = log2FoldChange, lfcshrunkSE = lfcSE)
+finresD3_minusN <- left_join(resD3_minusNdf, OEresD3_minusNdf[, c("locusName", "l2FCshrunk", "lfcshrunkSE")], by = "locusName")
+finresD3_minusN <- left_join(finresD3_minusN, annotations_GL[, c("locusName", "Best.hit.arabi.defline")], by = "locusName")
+finresD3_minusN <- left_join(finresD3_minusN, RRgenes[, c("locusName", "Gene Symbol", "Orthogroup", "Function", "Protein class/Molecular function")], by = "locusName")
+finresD3_minusN <- finresD3_minusN[order(finresD3_minusN$padj), ]
+finresD3_minusN$DEG <- ifelse(finresD3_minusN$padj < 0.05, "Yes", "No")
+writexl::write_xlsx(finresD3_minusN, path = "results_pvals_D3_minussN_vufun_vs_WT.xlsx")
+getwd()
+
+
+# D3, vufun vs WT, +N
+resultsNames(dds) # these are all the generated comparisons.
+
+resD3_plusN <- results(dds, contrast = c("CombID", "vufun2_D3_Nplus", "WT_D3_Nplus"), alpha = 0.05)
+summary(resD3_plusN)
+OEresD3_plusN <- lfcShrink(dds, contrast = c("CombID", "vufun2_D3_Nplus", "WT_D3_Nplus"), type = "ashr", res = resD3_plusN)
+resD3_plusNdf <- as.data.frame(resD3_plusN)
+resD3_plusNdf <- resD3_plusNdf %>%
+  rownames_to_column("locusName")
+OEresD3_plusNdf <- as.data.frame(OEresD3_plusN)
+OEresD3_plusNdf <- OEresD3_plusNdf %>%
+  rownames_to_column("locusName")
+OEresD3_plusNdf <- OEresD3_plusNdf %>%
+  dplyr::rename(l2FCshrunk = log2FoldChange, lfcshrunkSE = lfcSE)
+finresD3_plusN <- left_join(resD3_plusNdf, OEresD3_plusNdf[, c("locusName", "l2FCshrunk", "lfcshrunkSE")], by = "locusName")
+finresD3_plusN <- left_join(finresD3_plusN, annotations_GL[, c("locusName", "Best.hit.arabi.defline")], by = "locusName")
+finresD3_plusN <- left_join(finresD3_plusN, RRgenes[, c("locusName", "Gene Symbol", "Orthogroup", "Function", "Protein class/Molecular function")], by = "locusName")
+finresD3_plusN <- finresD3_plusN[order(finresD3_plusN$padj), ]
+finresD3_plusN$DEG <- ifelse(finresD3_plusN$padj < 0.05, "Yes", "No")
+writexl::write_xlsx(finresD3_plusN, path = "results_pvals_D3_plussN_vufun_vs_WT.xlsx")
+getwd()
+
+
+# MA plots
+dev.off()
+pdf(file = "vufun_betweengenotypes_singleTP_singleTrt.pdf", height = 8, width = 12)
+par(mfrow = c(3, 4))
+plotMA(resD1_minusN, main = "D1,WT vs vufun2 -N:\nNo Shrinkage", ylim = c(-4, 4))
+plotMA(OEresD1_minusN, main = "D1,WT vs vufun2 -N:\nWith Shrinkage", ylim = c(-4, 4))
+plotMA(resD1_plusN, main = "D1,WT vs vufun2 +N:\nNo Shrinkage", ylim = c(-4, 4))
+plotMA(OEresD1_plusN, main = "D1,WT vs vufun2 +N:\nWith Shrinkage", ylim = c(-4, 4))
+plotMA(resD3_minusN, main = "D3,WT vs vufun2 -N:\nNo Shrinkage", ylim = c(-4, 4))
+plotMA(OEresD3_minusN, main = "D3,WT vs vufun2 -N:\nWith Shrinkage", ylim = c(-4, 4))
+plotMA(resD3_plusN, main = "D3,WT vs vufun2 +N:\nNo Shrinkage", ylim = c(-4, 4))
+plotMA(OEresD3_plusN, main = "D3,WT vs vufun2 +N:\nWith Shrinkage", ylim = c(-4, 4))
+
+dev.off()
+##### Step 16 Collect all dataframes  #####
+##### Step 16.1 Collect for within Genotype differences (for single genotype, per day, Treatment effects) #####
 # Ok let's start pulling shit in
 SingleGenoSingleDay_plusN <- list(
   finresD1_vufun %>%
     select(locusName,
-           lfc_D1_vufun_plusN = log2FoldChange,
-           lfcs_D1_vufun_plusN = l2FCshrunk,
-           padj_D1_vufun_plusN = padj
+      lfc_D1_vufun_plusN = log2FoldChange,
+      lfcs_D1_vufun_plusN = l2FCshrunk,
+      padj_D1_vufun_plusN = padj
     ),
   finresD1_WT %>%
     select(locusName,
-           lfc_D1_WT_plusN = log2FoldChange,
-           lfcs_D1_WT_plusN = l2FCshrunk,
-           padj_D1_WT = padj
+      lfc_D1_WT_plusN = log2FoldChange,
+      lfcs_D1_WT_plusN = l2FCshrunk,
+      padj_D1_WT = padj
     ),
   finresD3_vufun %>%
     select(locusName,
-           lfc_D3_vufun_plusN = log2FoldChange,
-           lfcs_D3_vufun_plusN = l2FCshrunk,
-           padj_D3_vufun_plusN = padj
+      lfc_D3_vufun_plusN = log2FoldChange,
+      lfcs_D3_vufun_plusN = l2FCshrunk,
+      padj_D3_vufun_plusN = padj
     ),
   finresD3_WT %>%
     select(locusName,
-           lfc_D3_WT_plusN = log2FoldChange,
-           lfcs_D3_WT_plusN = l2FCshrunk,
-           padj_D3_WT_plusN = padj
+      lfc_D3_WT_plusN = log2FoldChange,
+      lfcs_D3_WT_plusN = l2FCshrunk,
+      padj_D3_WT_plusN = padj
     )
 )
 
@@ -594,24 +704,104 @@ SingleGenoSingleDay_plusN_merged <- SingleGenoSingleDay_plusN_merged %>%
   dplyr::distinct(locusName, .keep_all = TRUE) # 31337
 
 writexl::write_xlsx(SingleGenoSingleDay_plusN_merged, path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx")
+SingleGenoSingleDay_plusN_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx")
 
-#for padj<0.05
+# for padj<0.05
 colnames(SingleGenoSingleDay_plusN_merged)
 SingleGenoSingleDay_plusN_merged_DEG <- SingleGenoSingleDay_plusN_merged %>%
   filter(padj_D1_vufun_plusN < 0.05 | padj_D1_WT < 0.05 | padj_D3_vufun_plusN < 0.05 | padj_D3_WT_plusN < 0.05)
 
 writexl::write_xlsx(SingleGenoSingleDay_plusN_merged_DEG, path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined_DEG.xlsx")
+SingleGenoSingleDay_plusN_merged_DEG <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined_DEG.xlsx")
 
-#Step16 HM
+# What if we want DAP-seq list?
+DAPseqVu <- read.csv("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/CowpeaDAPseq.csv", header = TRUE)
+SingleGenoSingleDay_plusN_merged_DEG_annot <- SingleGenoSingleDay_plusN_merged_DEG %>%
+  left_join(annotations_GL[, c("locusName", "Best.hit.arabi.name", "Best.hit.arabi.defline", "Best.hit.rice.name", "Best.hit.rice.defline", "Transcript_Isoforms")], by = "locusName") %>%
+  left_join(RRgenes, by = "locusName") %>%
+  left_join(DAPseqVu, by = "locusName") %>%
+  left_join(resnormcounts, by = "locusName")
+
+writexl::write_xlsx(SingleGenoSingleDay_plusN_merged_DEG_annot, path = "vufun_SG_SD_plusN_intersects_fullannot.xlsx")
+
+SingleGenoSingleDay_plusN_merged_DEG
+
+
+##### Step 16.2 Collect for between Genotype differences (between genotypes, what is the difference per Day and Treatment condition) ####
+SingleNSingleDay_vufunvsWT <- list(
+  finresD1_minusN %>%
+    select(locusName,
+      lfc_finresD1_minusN = log2FoldChange,
+      lfcs_finresD1_minusN = l2FCshrunk,
+      padj_finresD1_minusN = padj
+    ),
+  finresD1_plusN %>%
+    select(locusName,
+      lfc_finresD1_plusN = log2FoldChange,
+      lfcs_finresD1_plusN = l2FCshrunk,
+      padj_finresD1_plusN = padj
+    ),
+  finresD3_minusN %>%
+    select(locusName,
+      lfc_finresD3_minusN = log2FoldChange,
+      lfcs_finresD3_minusN = l2FCshrunk,
+      padj_finresD3_minusN = padj
+    ),
+  finresD3_plusN %>%
+    select(locusName,
+      lfc_finresD3_plusN = log2FoldChange,
+      lfcs_finresD3_plusN = l2FCshrunk,
+      padj_finresD3_plusN = padj
+    )
+)
+library(purrr)
+
+SingleNSingleDay_vufunvsWT_merged <- purrr::reduce(SingleNSingleDay_vufunvsWT, inner_join, by = "locusName")
+SingleNSingleDay_vufunvsWT_merged <- SingleNSingleDay_vufunvsWT_merged %>%
+  dplyr::distinct(locusName, .keep_all = TRUE) # 31337
+
+writexl::write_xlsx(SingleNSingleDay_vufunvsWT_merged, path = "lfc_pval_vufun_VS_WT_combined.xlsx")
+SingleNSingleDay_vufunvsWT_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined.xlsx")
+# for padj<0.05
+colnames(SingleNSingleDay_vufunvsWT_merged)
+SingleNSingleDay_vufunvsWT_merged_DEG <- SingleNSingleDay_vufunvsWT_merged %>%
+  filter(padj_finresD1_minusN < 0.05 | padj_finresD1_plusN < 0.05 | padj_finresD3_minusN < 0.05 | padj_finresD3_plusN < 0.05)
+
+writexl::write_xlsx(SingleNSingleDay_vufunvsWT_merged_DEG, path = "lfc_pval_vufun_VS_WT_combined_DEG.xlsx")
+SingleNSingleDay_vufunvsWT_merged_DEG <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined_DEG.xlsx")
+
+# What if we want DAP-seq list?
+DAPseqVu <- read.csv("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/CowpeaDAPseq.csv", header = TRUE)
+SingleNSingleDay_vufunvsWT_merged_DEG_annot <- SingleNSingleDay_vufunvsWT_merged_DEG %>%
+  left_join(annotations_GL[, c("locusName", "Best.hit.arabi.name", "Best.hit.arabi.defline", "Best.hit.rice.name", "Best.hit.rice.defline", "Transcript_Isoforms")], by = "locusName") %>%
+  left_join(RRgenes, by = "locusName") %>%
+  left_join(DAPseqVu, by = "locusName") %>%
+  left_join(resnormcounts, by = "locusName")
+
+writexl::write_xlsx(SingleNSingleDay_vufunvsWT_merged_DEG_annot, path = "vufunvsWT_ST_SD_fullannot.xlsx")
+SingleGenoSingleDay_plusN_merged_DEG
+
+###### Step 17: Heatmaps (Can start here to load in dependent dataframes.) ######
+# load dependencies
+RRgenes <- readxl::read_xlsx("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/Panfaba work/RobRoy_Vuadded.xlsx")
+colnames(RRgenes)
+RRgenes <- rename(RRgenes, "Vunguiculata" = "locusName")
+# within genotype differences
+SingleGenoSingleDay_plusN_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx") # all genes
+SingleGenoSingleDay_plusN_merged_DEG <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined_DEG.xlsx") # DEGs only
+# within genotype differences
+SingleNSingleDay_vufunvsWT_merged_DEG <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined_DEG.xlsx") # DEGS only
+SingleNSingleDay_vufunvsWT_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined.xlsx") # all genes
+
+##### Step 17.1 For within genotype differences ####
 # Create base dataframes to work with
 SG_SD_plusN_rronly <- left_join(RRgenes[, c("Gene Symbol", "Function", "locusName")],
-                                SingleGenoSingleDay_plusN_merged,
-                         by = "locusName"
+  SingleGenoSingleDay_plusN_merged,
+  by = "locusName"
 ) # All Rob Roy genes #343
 
 SG_SD_plusN_noNA <- SG_SD_plusN_rronly %>%
   drop_na(starts_with("lfcs_")) # All DEG Rob Roy genes #321
-
 
 
 # Make Groupings
@@ -622,19 +812,19 @@ row_orderRRall <- data.frame(
 )
 
 row_orderRRall$Grouping <- factor(row_orderRRall$Grouping,
-                                  levels = c(
-                                    "Early Signalling",
-                                    "Host Range Restriction",
-                                    "Rhizobial Infection",
-                                    "Nodule Organogenesis",
-                                    "Autoregulation of Nodule Number",
-                                    "Bacterial Maturation",
-                                    "Symbiosome Maturation",
-                                    "Nodulation Metabolism and Transport",
-                                    "Senescence",
-                                    "Defense",
-                                    "DAP-seq target"
-                                  )
+  levels = c(
+    "Early Signalling",
+    "Host Range Restriction",
+    "Rhizobial Infection",
+    "Nodule Organogenesis",
+    "Autoregulation of Nodule Number",
+    "Bacterial Maturation",
+    "Symbiosome Maturation",
+    "Nodulation Metabolism and Transport",
+    "Senescence",
+    "Defense",
+    "DAP-seq target"
+  )
 )
 
 row_orderRRall <- row_orderRRall %>%
@@ -701,272 +891,113 @@ colfun <- colorRamp2(
 
 
 colnames(SG_SD_plusN_noNA_rr_lfc_mat)
-col_order <- c("lfcs_D1_vufun_plusN", "lfcs_D1_WT_plusN",    "lfcs_D3_vufun_plusN", "lfcs_D3_WT_plusN" )
+col_order <- c("lfcs_D1_vufun_plusN", "lfcs_D1_WT_plusN", "lfcs_D3_vufun_plusN", "lfcs_D3_WT_plusN")
 column_split_factor <- factor(col_order, levels = col_order)
 column_split_factor
-# Heatmap
 
+# Heatmap
 dev.off()
 pdf("SG_SD_plusN_RR.pdf", height = 12)
 Heatmap(SG_SD_plusN_noNA_rr_lfc_mat,
-              col = colfun,
-              use_raster = TRUE,
-              cluster_columns = FALSE,
-              cluster_rows = TRUE,
-              row_labels = row_orderRRall$geneSym,
-              # Show row names (from the matrix) on the right
-              show_row_names = TRUE,
-              row_names_side = "right",
-              # put them on the right
-              cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
-              # cluster_rows=TRUE,
-              # clustering_method_columns="ward.D",
-              # clustering_method_rows = "ward.D",
-              row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
-              row_split = factor(row_orderRRall$Grouping),
-              row_gap = unit(2, "mm"),
-              cell_fun = function(j, i, x, y, width, height, fill) {
-                if (sig_mat[i, j] != "") {
-                  grid.text(
-                    sig_mat[i, j],
-                    x, y,
-                    gp = gpar(fontsize = 2, col = "red")
-                  )
-                }
-              },
-              # row_km = 12,
-              # column_km=9,
-              # column_km_repeats=100,
-              # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
-              row_title_gp = gpar(font = 2, fontsize = 4),
-              row_title_rot = 0,
-              row_names_gp = gpar(fontsize = 3),
-              cluster_column_slices = FALSE,
-              column_split = column_split_factor, # <- visually separates minusP vs plusP
-              column_gap = unit(2, "mm"),
-              column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N",
-              # column_title_side = "bottom",
-              column_title_gp = gpar(fontsize = 15, fontface = "bold"),
-              heatmap_legend_param = list(
-                title = "shrunklog2FC",
-                title_gp = gpar(fontsize = 10, fontface = "bold"),
-                labels_gp = gpar(fontsize = 8),
-                at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
-                labels = seq(-4, 4, by = 2) # what to print next to these ticke
-              )
+  col = colfun,
+  use_raster = TRUE,
+  cluster_columns = FALSE,
+  cluster_rows = TRUE,
+  row_labels = row_orderRRall$geneSym,
+  # Show row names (from the matrix) on the right
+  show_row_names = TRUE,
+  row_names_side = "right",
+  # put them on the right
+  cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
+  # cluster_rows=TRUE,
+  # clustering_method_columns="ward.D",
+  # clustering_method_rows = "ward.D",
+  row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
+  row_split = factor(row_orderRRall$Grouping),
+  row_gap = unit(2, "mm"),
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    if (sig_mat[i, j] != "") {
+      grid.text(
+        sig_mat[i, j],
+        x, y,
+        gp = gpar(fontsize = 2, col = "red")
+      )
+    }
+  },
+  # row_km = 12,
+  # column_km=9,
+  # column_km_repeats=100,
+  # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
+  row_title_gp = gpar(font = 2, fontsize = 4),
+  row_title_rot = 0,
+  row_names_gp = gpar(fontsize = 3),
+  cluster_column_slices = FALSE,
+  column_split = column_split_factor, # <- visually separates minusP vs plusP
+  column_gap = unit(2, "mm"),
+  column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N",
+  # column_title_side = "bottom",
+  column_title_gp = gpar(fontsize = 15, fontface = "bold"),
+  heatmap_legend_param = list(
+    title = "shrunklog2FC",
+    title_gp = gpar(fontsize = 10, fontface = "bold"),
+    labels_gp = gpar(fontsize = 8),
+    at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
+    labels = seq(-4, 4, by = 2) # what to print next to these ticke
+  )
 )
 dev.off()
 
 Heatmap(SingleGenoSingleDay_plusN_merged_DEG_mat,
-        col = colfun,
-        use_raster = TRUE,
-        cluster_columns = FALSE,
-        cluster_rows = TRUE,
-        #row_labels = row_orderRRall$geneSym,
-        # Show row names (from the matrix) on the right
-        show_row_names = FALSE,
-        #row_names_side = "right",
-        # put them on the right
-        #cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
-        # cluster_rows=TRUE,
-        # clustering_method_columns="ward.D",
-        # clustering_method_rows = "ward.D",
-       # row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
-      #  row_split = factor(row_orderRRall$Grouping),
-      #  row_gap = unit(2, "mm"),
-        row_km = 22,
-        # column_km=9,
-        # column_km_repeats=100,
-        # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
-        row_title_gp = gpar(font = 2, fontsize = 6),
-        row_title_rot = 0,
-        row_names_gp = gpar(fontsize = 6),
-        cluster_column_slices = FALSE,
-        column_split = column_split_factor, # <- visually separates minusP vs plusP
-        column_gap = unit(2, "mm"),
-       # column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N:While Transcriptome",
-        # column_title_side = "bottom",
-        column_title_gp = gpar(fontsize = 15, fontface = "bold"),
-        heatmap_legend_param = list(
-          title = "shrunklog2FC",
-          title_gp = gpar(fontsize = 10, fontface = "bold"),
-          labels_gp = gpar(fontsize = 8),
-          at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
-          labels = seq(-4, 4, by = 2) # what to print next to these ticke
-        )
+  col = colfun,
+  use_raster = TRUE,
+  cluster_columns = FALSE,
+  cluster_rows = TRUE,
+  # row_labels = row_orderRRall$geneSym,
+  # Show row names (from the matrix) on the right
+  show_row_names = FALSE,
+  # row_names_side = "right",
+  # put them on the right
+  # cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
+  # cluster_rows=TRUE,
+  # clustering_method_columns="ward.D",
+  # clustering_method_rows = "ward.D",
+  # row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
+  #  row_split = factor(row_orderRRall$Grouping),
+  #  row_gap = unit(2, "mm"),
+  row_km = 22,
+  # column_km=9,
+  # column_km_repeats=100,
+  # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
+  row_title_gp = gpar(font = 2, fontsize = 6),
+  row_title_rot = 0,
+  row_names_gp = gpar(fontsize = 6),
+  cluster_column_slices = FALSE,
+  column_split = column_split_factor, # <- visually separates minusP vs plusP
+  column_gap = unit(2, "mm"),
+  # column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N:While Transcriptome",
+  # column_title_side = "bottom",
+  column_title_gp = gpar(fontsize = 15, fontface = "bold"),
+  heatmap_legend_param = list(
+    title = "shrunklog2FC",
+    title_gp = gpar(fontsize = 10, fontface = "bold"),
+    labels_gp = gpar(fontsize = 8),
+    at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
+    labels = seq(-4, 4, by = 2) # what to print next to these ticke
+  )
 )
 
 
-# What if we want DAP-seq list?
-DAPseqVu <- read.csv("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/CowpeaDAPseq.csv", header = TRUE)
-SingleGenoSingleDay_plusN_merged_DEG_annot <- SingleGenoSingleDay_plusN_merged_DEG %>%
-  left_join(annotations_GL[, c("locusName", "Best.hit.arabi.name", "Best.hit.arabi.defline", "Best.hit.rice.name", "Best.hit.rice.defline", "Transcript_Isoforms")], by = "locusName") %>%
-  left_join(RRgenes, by = "locusName") %>%
-  left_join(DAPseqVu, by = "locusName") %>%
-  left_join(resnormcounts, by = "locusName")
-
-writexl::write_xlsx(SingleGenoSingleDay_plusN_merged_DEG_annot, path = "vufun_SG_SD_plusN_intersects_fullannot.xlsx")
-SingleGenoSingleDay_plusN_merged_DEG
+# Going back to Step 15 for Between Genotype differences
 
 
-#Going back to Step 15 for Between Genotype differences
-# D1, vufun vs WT, -N
-resultsNames(dds) # these are all the generated comparisons.
-
-resD1_minusN <- results(dds, contrast=c("CombID","vufun2_D1_Nminus","WT_D1_Nminus"),alpha=0.05)
-summary(resD1_minusN)
-OEresD1_minusN <- lfcShrink(dds, contrast = c("CombID", "vufun2_D1_Nminus", "WT_D1_Nminus"), type = "ashr", res = resD1_minusN)
-resD1_minusNdf <- as.data.frame(resD1_minusN)
-resD1_minusNdf <- resD1_minusNdf %>%
-  rownames_to_column("locusName")
-OEresD1_minusNdf <- as.data.frame(OEresD1_minusN)
-OEresD1_minusNdf <- OEresD1_minusNdf %>%
-  rownames_to_column("locusName")
-OEresD1_minusNdf <- OEresD1_minusNdf %>%
-  dplyr::rename(l2FCshrunk = log2FoldChange, lfcshrunkSE = lfcSE)
-finresD1_minusN <- left_join(resD1_minusNdf, OEresD1_minusNdf[, c("locusName", "l2FCshrunk", "lfcshrunkSE")], by = "locusName")
-finresD1_minusN <- left_join(finresD1_minusN, annotations_GL[, c("locusName", "Best.hit.arabi.defline")], by = "locusName")
-finresD1_minusN <- left_join(finresD1_minusN, RRgenes[, c("locusName", "Gene Symbol", "Orthogroup", "Function", "Protein class/Molecular function")], by = "locusName")
-finresD1_minusN <- finresD1_minusN[order(finresD1_minusN$padj), ]
-finresD1_minusN$DEG <- ifelse(finresD1_minusN$padj < 0.05, "Yes", "No")
-writexl::write_xlsx(finresD1_minusN, path = "results_pvals_D1_minusN_vufun_vs_WT.xlsx")
-getwd()
-
-# D1, vufun vs WT, +N
-resultsNames(dds) # these are all the generated comparisons.
-
-resD1_plusN <- results(dds, contrast=c("CombID","vufun2_D1_Nplus","WT_D1_Nplus"),alpha=0.05)
-summary(resD1_plusN)
-OEresD1_plusN <- lfcShrink(dds, contrast = c("CombID", "vufun2_D1_Nplus", "WT_D1_Nplus"), type = "ashr", res = resD1_plusN)
-resD1_plusNdf <- as.data.frame(resD1_plusN)
-resD1_plusNdf <- resD1_plusNdf %>%
-  rownames_to_column("locusName")
-OEresD1_plusNdf <- as.data.frame(OEresD1_plusN)
-OEresD1_plusNdf <- OEresD1_plusNdf %>%
-  rownames_to_column("locusName")
-OEresD1_plusNdf <- OEresD1_plusNdf %>%
-  dplyr::rename(l2FCshrunk = log2FoldChange, lfcshrunkSE = lfcSE)
-finresD1_plusN <- left_join(resD1_plusNdf, OEresD1_plusNdf[, c("locusName", "l2FCshrunk", "lfcshrunkSE")], by = "locusName")
-finresD1_plusN <- left_join(finresD1_plusN, annotations_GL[, c("locusName", "Best.hit.arabi.defline")], by = "locusName")
-finresD1_plusN <- left_join(finresD1_plusN, RRgenes[, c("locusName", "Gene Symbol", "Orthogroup", "Function", "Protein class/Molecular function")], by = "locusName")
-finresD1_plusN <- finresD1_plusN[order(finresD1_plusN$padj), ]
-finresD1_plusN$DEG <- ifelse(finresD1_plusN$padj < 0.05, "Yes", "No")
-writexl::write_xlsx(finresD1_plusN, path = "results_pvals_D1_plussN_vufun_vs_WT.xlsx")
-getwd()
+# Step 16:revising to consolidate
 
 
-
-# D3, vufun vs WT, -N
-resultsNames(dds) # these are all the generated comparisons.
-
-resD3_minusN <- results(dds, contrast=c("CombID","vufun2_D3_Nminus","WT_D3_Nminus"),alpha=0.05)
-summary(resD3_minusN)
-OEresD3_minusN <- lfcShrink(dds, contrast = c("CombID", "vufun2_D3_Nminus", "WT_D3_Nminus"), type = "ashr", res = resD3_minusN)
-resD3_minusNdf <- as.data.frame(resD3_minusN)
-resD3_minusNdf <- resD3_minusNdf %>%
-  rownames_to_column("locusName")
-OEresD3_minusNdf <- as.data.frame(OEresD3_minusN)
-OEresD3_minusNdf <- OEresD3_minusNdf %>%
-  rownames_to_column("locusName")
-OEresD3_minusNdf <- OEresD3_minusNdf %>%
-  dplyr::rename(l2FCshrunk = log2FoldChange, lfcshrunkSE = lfcSE)
-finresD3_minusN <- left_join(resD3_minusNdf, OEresD3_minusNdf[, c("locusName", "l2FCshrunk", "lfcshrunkSE")], by = "locusName")
-finresD3_minusN <- left_join(finresD3_minusN, annotations_GL[, c("locusName", "Best.hit.arabi.defline")], by = "locusName")
-finresD3_minusN <- left_join(finresD3_minusN, RRgenes[, c("locusName", "Gene Symbol", "Orthogroup", "Function", "Protein class/Molecular function")], by = "locusName")
-finresD3_minusN <- finresD3_minusN[order(finresD3_minusN$padj), ]
-finresD3_minusN$DEG <- ifelse(finresD3_minusN$padj < 0.05, "Yes", "No")
-writexl::write_xlsx(finresD3_minusN, path = "results_pvals_D3_minussN_vufun_vs_WT.xlsx")
-getwd()
-
-
-
-
-# D3, vufun vs WT, +N
-resultsNames(dds) # these are all the generated comparisons.
-
-resD3_plusN <- results(dds, contrast=c("CombID","vufun2_D3_Nplus","WT_D3_Nplus"),alpha=0.05)
-summary(resD3_plusN)
-OEresD3_plusN <- lfcShrink(dds, contrast = c("CombID", "vufun2_D3_Nplus", "WT_D3_Nplus"), type = "ashr", res = resD3_plusN)
-resD3_plusNdf <- as.data.frame(resD3_plusN)
-resD3_plusNdf <- resD3_plusNdf %>%
-  rownames_to_column("locusName")
-OEresD3_plusNdf <- as.data.frame(OEresD3_plusN)
-OEresD3_plusNdf <- OEresD3_plusNdf %>%
-  rownames_to_column("locusName")
-OEresD3_plusNdf <- OEresD3_plusNdf %>%
-  dplyr::rename(l2FCshrunk = log2FoldChange, lfcshrunkSE = lfcSE)
-finresD3_plusN <- left_join(resD3_plusNdf, OEresD3_plusNdf[, c("locusName", "l2FCshrunk", "lfcshrunkSE")], by = "locusName")
-finresD3_plusN <- left_join(finresD3_plusN, annotations_GL[, c("locusName", "Best.hit.arabi.defline")], by = "locusName")
-finresD3_plusN <- left_join(finresD3_plusN, RRgenes[, c("locusName", "Gene Symbol", "Orthogroup", "Function", "Protein class/Molecular function")], by = "locusName")
-finresD3_plusN <- finresD3_plusN[order(finresD3_plusN$padj), ]
-finresD3_plusN$DEG <- ifelse(finresD3_plusN$padj < 0.05, "Yes", "No")
-writexl::write_xlsx(finresD3_plusN, path = "results_pvals_D3_plussN_vufun_vs_WT.xlsx")
-getwd()
-
-
-# MA plots
-dev.off()
-pdf(file = "vufun_betweengenotypes_singleTP_singleTrt.pdf", height = 8, width = 12)
-par(mfrow = c(3, 4))
-plotMA(resD1_minusN, main = "D1,WT vs vufun2 -N:\nNo Shrinkage", ylim = c(-4, 4))
-plotMA(OEresD1_minusN, main = "D1,WT vs vufun2 -N:\nWith Shrinkage", ylim = c(-4, 4))
-plotMA(resD1_plusN, main = "D1,WT vs vufun2 +N:\nNo Shrinkage", ylim = c(-4, 4))
-plotMA(OEresD1_plusN, main = "D1,WT vs vufun2 +N:\nWith Shrinkage", ylim = c(-4, 4))
-plotMA(resD3_minusN, main = "D3,WT vs vufun2 -N:\nNo Shrinkage", ylim = c(-4, 4))
-plotMA(OEresD3_minusN, main = "D3,WT vs vufun2 -N:\nWith Shrinkage", ylim = c(-4, 4))
-plotMA(resD3_plusN, main = "D3,WT vs vufun2 +N:\nNo Shrinkage", ylim = c(-4, 4))
-plotMA(OEresD3_plusN, main = "D3,WT vs vufun2 +N:\nWith Shrinkage", ylim = c(-4, 4))
-
-dev.off()
-
-#Step 16:revising to consolidate 
-SingleNSingleDay_vufunvsWT <- list(
-  finresD1_minusN %>%
-    select(locusName,
-           lfc_finresD1_minusN = log2FoldChange,
-           lfcs_finresD1_minusN = l2FCshrunk,
-           padj_finresD1_minusN = padj
-    ),
-  finresD1_plusN %>%
-    select(locusName,
-           lfc_finresD1_plusN = log2FoldChange,
-           lfcs_finresD1_plusN = l2FCshrunk,
-           padj_finresD1_plusN = padj
-    ),
-  finresD3_minusN %>%
-    select(locusName,
-           lfc_finresD3_minusN = log2FoldChange,
-           lfcs_finresD3_minusN = l2FCshrunk,
-           padj_finresD3_minusN = padj
-    ),
-  finresD3_plusN %>%
-    select(locusName,
-           lfc_finresD3_plusN = log2FoldChange,
-           lfcs_finresD3_plusN = l2FCshrunk,
-           padj_finresD3_plusN = padj
-    )
-)
-library(purrr)
-
-SingleNSingleDay_vufunvsWT_merged <- purrr::reduce(SingleNSingleDay_vufunvsWT, inner_join, by = "locusName")
-SingleNSingleDay_vufunvsWT_merged <- SingleNSingleDay_vufunvsWT_merged %>%
-  dplyr::distinct(locusName, .keep_all = TRUE) # 31337
-
-writexl::write_xlsx(SingleNSingleDay_vufunvsWT_merged, path = "lfc_pval_vufun_VS_WT_combined.xlsx")
-
-#for padj<0.05
-colnames(SingleNSingleDay_vufunvsWT_merged)
-SingleNSingleDay_vufunvsWT_merged_DEG <- SingleNSingleDay_vufunvsWT_merged %>%
-  filter(padj_finresD1_minusN < 0.05 | padj_finresD1_plusN < 0.05 | padj_finresD3_minusN < 0.05 | padj_finresD3_plusN < 0.05)
-
-writexl::write_xlsx(SingleNSingleDay_vufunvsWT_merged_DEG, path = "lfc_pval_vufun_VS_WT_combined_DEG.xlsx")
-
-
-#Step16 HM
+##### Step 17.2: For between genotype differences #####
 # Create base dataframes to work with
 ST_SD_vufun2vsWT_rronly <- left_join(RRgenes[, c("Gene Symbol", "Function", "locusName")],
-                                     SingleNSingleDay_vufunvsWT_merged_DEG,
-                                by = "locusName"
+  SingleNSingleDay_vufunvsWT_merged_DEG,
+  by = "locusName"
 ) # All Rob Roy genes #343
 colnames(ST_SD_vufun2vsWT_rronly)
 
@@ -983,19 +1014,19 @@ row_orderRRall <- data.frame(
 )
 
 row_orderRRall$Grouping <- factor(row_orderRRall$Grouping,
-                                  levels = c(
-                                    "Early Signalling",
-                                    "Host Range Restriction",
-                                    "Rhizobial Infection",
-                                    "Nodule Organogenesis",
-                                    "Autoregulation of Nodule Number",
-                                    "Bacterial Maturation",
-                                    "Symbiosome Maturation",
-                                    "Nodulation Metabolism and Transport",
-                                    "Senescence",
-                                    "Defense",
-                                    "DAP-seq target"
-                                  )
+  levels = c(
+    "Early Signalling",
+    "Host Range Restriction",
+    "Rhizobial Infection",
+    "Nodule Organogenesis",
+    "Autoregulation of Nodule Number",
+    "Bacterial Maturation",
+    "Symbiosome Maturation",
+    "Nodulation Metabolism and Transport",
+    "Senescence",
+    "Defense",
+    "DAP-seq target"
+  )
 )
 
 row_orderRRall <- row_orderRRall %>%
@@ -1062,7 +1093,7 @@ colfun <- colorRamp2(
 
 
 colnames(ST_SD_vufun2vsWT_rronly_no_NA_rr_lfc_mat)
-col_order <- c("lfcs_finresD1_minusN", "lfcs_finresD3_minusN" ,   "lfcs_finresD1_plusN", "lfcs_finresD3_plusN"  )
+col_order <- c("lfcs_finresD1_minusN", "lfcs_finresD3_minusN", "lfcs_finresD1_plusN", "lfcs_finresD3_plusN")
 column_split_factor <- factor(col_order, levels = col_order)
 column_split_factor
 # Heatmap
@@ -1070,156 +1101,92 @@ column_split_factor
 dev.off()
 pdf("ST_SD_vufun_RR_locusName.pdf", height = 12)
 Heatmap(ST_SD_vufun2vsWT_rronly_no_NA_rr_lfc_mat,
-        col = colfun,
-        use_raster = TRUE,
-        cluster_columns = FALSE,
-        cluster_rows = TRUE,
-        row_labels = row_orderRRall$locusName,
-        # Show row names (from the matrix) on the right
-        show_row_names = TRUE,
-        row_names_side = "right",
-        # put them on the right
-        cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
-        # cluster_rows=TRUE,
-        # clustering_method_columns="ward.D",
-        # clustering_method_rows = "ward.D",
-        row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
-        row_split = factor(row_orderRRall$Grouping),
-        row_gap = unit(2, "mm"),
-        cell_fun = function(j, i, x, y, width, height, fill) {
-          if (vufunvsWT_sig_mat[i, j] != "") {
-            grid.text(
-              vufunvsWT_sig_mat[i, j],
-              x, y,
-              gp = gpar(fontsize = 8, col = "red")
-            )
-          }
-        },
-        # row_km = 12,
-        # column_km=9,
-        # column_km_repeats=100,
-        # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
-        row_title_gp = gpar(font = 2, fontsize = 8),
-        row_title_rot = 0,
-        row_names_gp = gpar(fontsize = 8),
-        cluster_column_slices = FALSE,
-        column_order = order(col_order),
-        column_split = col_order, 
-        column_gap = unit(2, "mm"),
-        column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N",
-        # column_title_side = "bottom",
-        column_title_gp = gpar(fontsize = 15, fontface = "bold"),
-        heatmap_legend_param = list(
-          title = "shrunklog2FC",
-          title_gp = gpar(fontsize = 10, fontface = "bold"),
-          labels_gp = gpar(fontsize = 8),
-          at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
-          labels = seq(-4, 4, by = 2) # what to print next to these ticke
-        )
+  col = colfun,
+  use_raster = TRUE,
+  cluster_columns = FALSE,
+  cluster_rows = TRUE,
+  row_labels = row_orderRRall$geneSym,
+  # Show row names (from the matrix) on the right
+  show_row_names = TRUE,
+  row_names_side = "right",
+  # put them on the right
+  cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
+  # cluster_rows=TRUE,
+  # clustering_method_columns="ward.D",
+  # clustering_method_rows = "ward.D",
+  row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
+  row_split = factor(row_orderRRall$Grouping),
+  row_gap = unit(2, "mm"),
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    if (vufunvsWT_sig_mat[i, j] != "") {
+      grid.text(
+        vufunvsWT_sig_mat[i, j],
+        x, y,
+        gp = gpar(fontsize = 8, col = "red")
+      )
+    }
+  },
+  # row_km = 12,
+  # column_km=9,
+  # column_km_repeats=100,
+  # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
+  row_title_gp = gpar(font = 2, fontsize = 8),
+  row_title_rot = 0,
+  row_names_gp = gpar(fontsize = 8),
+  cluster_column_slices = FALSE,
+  column_order = order(col_order),
+  column_split = col_order,
+  column_gap = unit(2, "mm"),
+  column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N",
+  # column_title_side = "bottom",
+  column_title_gp = gpar(fontsize = 15, fontface = "bold"),
+  heatmap_legend_param = list(
+    title = "shrunklog2FC",
+    title_gp = gpar(fontsize = 10, fontface = "bold"),
+    labels_gp = gpar(fontsize = 8),
+    at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
+    labels = seq(-4, 4, by = 2) # what to print next to these ticke
+  )
 )
 dev.off()
 
-Heatmap(SingleGenoSingleDay_plusN_merged_DEG_mat,
-        col = colfun,
-        use_raster = TRUE,
-        cluster_columns = FALSE,
-        cluster_rows = TRUE,
-        #row_labels = row_orderRRall$geneSym,
-        # Show row names (from the matrix) on the right
-        show_row_names = FALSE,
-        #row_names_side = "right",
-        # put them on the right
-        #cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
-        # cluster_rows=TRUE,
-        # clustering_method_columns="ward.D",
-        # clustering_method_rows = "ward.D",
-        #row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
-        #row_split = factor(row_orderRRall$Grouping),
-        #row_gap = unit(2, "mm"),
-        #row_km = 22,
-        # column_km=9,
-        # column_km_repeats=100,
-        # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
-        row_title_gp = gpar(font = 2, fontsize = 6),
-        row_title_rot = 0,
-        row_names_gp = gpar(fontsize = 6),
-        cluster_column_slices = FALSE,
-        #column_split = column_split_factor, # <- visually separates minusP vs plusP
-        column_gap = unit(2, "mm"),
-       # column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N:While Transcriptome",
-        # column_title_side = "bottom",
-        column_title_gp = gpar(fontsize = 15, fontface = "bold"),
-        heatmap_legend_param = list(
-          title = "shrunklog2FC",
-          title_gp = gpar(fontsize = 10, fontface = "bold"),
-          labels_gp = gpar(fontsize = 8),
-          at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
-          labels = seq(-4, 4, by = 2) # what to print next to these ticke
-        )
-)
 
-
-dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# What if we want DAP-seq list?
-DAPseqVu <- read.csv("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/CowpeaDAPseq.csv", header = TRUE)
-SingleNSingleDay_vufunvsWT_merged_DEG_annot <- SingleNSingleDay_vufunvsWT_merged_DEG %>%
-  left_join(annotations_GL[, c("locusName", "Best.hit.arabi.name", "Best.hit.arabi.defline", "Best.hit.rice.name", "Best.hit.rice.defline", "Transcript_Isoforms")], by = "locusName") %>%
-  left_join(RRgenes, by = "locusName") %>%
-  left_join(DAPseqVu, by = "locusName") %>%
-  left_join(resnormcounts, by = "locusName")
-
-writexl::write_xlsx(SingleNSingleDay_vufunvsWT_merged_DEG_annot, path = "vufunvsWT_ST_SD_fullannot.xlsx")
-SingleGenoSingleDay_plusN_merged_DEG
-
-
-#here's another thing. map back to ZBF mutants!
-#Dataset with all ZBF mutants:
+##### Step 18: More heatmaps, but with ZBF for a consolidated heatmap. Analysis starting to getting messy #####
+# Dataset with all ZBF mutants:
 getwd()
 ZBFbothrronly_DEG <- readxl::read_xlsx("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/ZBF1_ZBF28_ZBF_2025/quantsZBF1_ZBF28/ZBF1315_onlyDEG.xlsx")
-#Dataset with all vufun TC (within genotype diffs)
+# Dataset with all vufun TC (within genotype diffs)
 SingleGenoSingleDay_plusN_merged <- readxl::read_xlsx("lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx")
-#Dataset with  all vufun TC (between genotype diffs)
+colnames(SingleGenoSingleDay_plusN_merged)
+SingleGenoSingleDay_plusN_merged <- dplyr::rename(SingleGenoSingleDay_plusN_merged, "padj_D1_WT_plusN" = "padj_D1_WT") # no longer necessary
+View(SingleGenoSingleDay_plusN_merged)
+writexl::write_xlsx(SingleGenoSingleDay_plusN_merged, path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx")
+# Dataset with  all vufun TC (between genotype diffs)
 SingleNSingleDay_vufunvsWT_merged <- readxl::read_xlsx("lfc_pval_vufun_VS_WT_combined.xlsx")
 
 ZBF_vufunSG_vufunBG <- ZBFbothrronly_DEG %>%
   left_join(SingleGenoSingleDay_plusN_merged, by = "locusName") %>%
-  left_join(SingleNSingleDay_vufunvsWT_merged, by = "locusName") 
+  left_join(SingleNSingleDay_vufunvsWT_merged, by = "locusName")
 
 colnames(ZBF_vufunSG_vufunBG)
 
-ZBF_vufunSG_vufunBG_DEG <- ZBF_vufunSG_vufunBG[,-c(1,2)]  %>%
+ZBF_vufunSG_vufunBG_DEG <- ZBF_vufunSG_vufunBG[, -c(1, 2)] %>%
   filter(padj_ADMD17_ref15 < 0.05 | padj_DBL19_ref15 < 0.05 | padj_DBL21_ref15 < 0.05 | padj_HA11_ref15 < 0.05 | padj_HA3_ref15 < 0.05 | padj_WT13_ref15 < 0.05 |
-           padj_ADMD17_ref13 < 0.05 | padj_DBL19_ref13 < 0.05 | padj_DBL21_ref13 < 0.05 | padj_HA11_ref13 < 0.05 | padj_HA3_ref13 < 0.05 | padj_WT15_ref13 < 0.05|
-           padj_D1_vufun_plusN < 0.05 | padj_D1_WT < 0.05 | padj_D3_vufun_plusN < 0.05 | padj_D3_WT_plusN < 0.05|
-           padj_finresD1_minusN < 0.05 | padj_finresD1_plusN < 0.05 | padj_finresD3_minusN < 0.05 | padj_finresD3_plusN < 0.05
-           ) 
+    padj_ADMD17_ref13 < 0.05 | padj_DBL19_ref13 < 0.05 | padj_DBL21_ref13 < 0.05 | padj_HA11_ref13 < 0.05 | padj_HA3_ref13 < 0.05 | padj_WT15_ref13 < 0.05 |
+    padj_D1_vufun_plusN < 0.05 | padj_D1_WT_plusN < 0.05 | padj_D3_vufun_plusN < 0.05 | padj_D3_WT_plusN < 0.05 |
+    padj_finresD1_minusN < 0.05 | padj_finresD1_plusN < 0.05 | padj_finresD3_minusN < 0.05 | padj_finresD3_plusN < 0.05)
 
 
-ZBF_vufunSG_vufunBG_DEG <- ZBF_vufunSG_vufunBG_DEG %>% 
+ZBF_vufunSG_vufunBG_DEG <- ZBF_vufunSG_vufunBG_DEG %>%
   filter(!if_all(starts_with("lfcs_"), is.na))
 
 ZBF_vufunSG_vufunBG_DEGrronly <- left_join(RRgenes[, c("Gene Symbol", "Function", "locusName")],
-                                           ZBF_vufunSG_vufunBG_DEG,
-                         by = "locusName"
+  ZBF_vufunSG_vufunBG_DEG,
+  by = "locusName"
 ) # All Rob Roy genes
 
-ZBF_vufunSG_vufunBG_DEGrronly_noNA <- ZBF_vufunSG_vufunBG_DEGrronly %>% 
-  filter(!if_all(starts_with("lfcs_"), is.na)) #remove rows if NA in ALL LFCs-containg columns
+ZBF_vufunSG_vufunBG_DEGrronly_noNA <- ZBF_vufunSG_vufunBG_DEGrronly %>%
+  filter(!if_all(starts_with("lfcs_"), is.na)) # remove rows if NA in ALL LFCs-containg columns
 
 # Make Groupings
 row_orderRRall <- data.frame(
@@ -1229,19 +1196,19 @@ row_orderRRall <- data.frame(
 )
 
 row_orderRRall$Grouping <- factor(row_orderRRall$Grouping,
-                                    levels = c(
-                                      "Early Signalling",
-                                      "Host Range Restriction",
-                                      "Rhizobial Infection",
-                                      "Nodule Organogenesis",
-                                      "Autoregulation of Nodule Number",
-                                      "Bacterial Maturation",
-                                      "Symbiosome Maturation",
-                                      "Nodulation Metabolism and Transport",
-                                      "Senescence",
-                                      "Defense",
-                                      "DAP-seq target"
-                                    )
+  levels = c(
+    "Early Signalling",
+    "Host Range Restriction",
+    "Rhizobial Infection",
+    "Nodule Organogenesis",
+    "Autoregulation of Nodule Number",
+    "Bacterial Maturation",
+    "Symbiosome Maturation",
+    "Nodulation Metabolism and Transport",
+    "Senescence",
+    "Defense",
+    "DAP-seq target"
+  )
 )
 
 ALLrr_lfc_mat <- ZBF_vufunSG_vufunBG_DEGrronly_noNA %>%
@@ -1270,174 +1237,644 @@ colnames(ALLrr_lfc_mat)
 col_order <- colnames(ALLrr_lfc_mat)
 column_split_factor <- factor(col_order, levels = col_order)
 dev.off()
-pdf("ZBF_vufunall_genesym.pdf", height = 24,width=12)
+pdf("ZBF_vufunall_genesym.pdf", height = 24, width = 12)
 Heatmap(ALLrr_lfc_mat,
-              col = colfun,
-              use_raster = TRUE,
-              cluster_columns = FALSE,
-              cluster_rows = TRUE,
-              row_labels = row_orderRRall$geneSym,
-              # Show row names (from the matrix) on the right
-              show_row_names = TRUE,
-              row_names_side = "right",
-              # put them on the right
-              cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
-              # cluster_rows=TRUE,
-              # clustering_method_columns="ward.D",
-              # clustering_method_rows = "ward.D",
-              row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
-              row_split = factor(row_orderRRall$Grouping),
-              row_gap = unit(2, "mm"),
-              cell_fun = function(j, i, x, y, width, height, fill) {
-                if (all_sig_mat[i, j] != "") {
-                  grid.text(
-                    all_sig_mat[i, j],
-                    x, y,
-                    gp = gpar(fontsize = 6, col = "red")
-                  )
-                }
-              },
-              # row_km = 12,
-              # column_km=9,
-              # column_km_repeats=100,
-              # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
-              row_title_gp = gpar(font = 2, fontsize = 6),
-              row_title_rot = 0,
-              row_names_gp = gpar(fontsize = 6),
-              cluster_column_slices = FALSE,
-              column_order = column_split_factorall,
-              #column_split = column_split_factorall, # <- visually separates minusP vs plusP
-              column_gap = unit(2, "mm"),
-              column_title = "ZBF +vuFUN TC",
-              # column_title_side = "bottom",
-              column_title_gp = gpar(fontsize = 15, fontface = "bold"),
-              heatmap_legend_param = list(
-                title = "shrunklog2FC",
-                title_gp = gpar(fontsize = 10, fontface = "bold"),
-                labels_gp = gpar(fontsize = 8),
-                at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
-                labels = seq(-4, 4, by = 2) # what to print next to these ticke
-              )
+  col = colfun,
+  use_raster = TRUE,
+  cluster_columns = FALSE,
+  cluster_rows = TRUE,
+  row_labels = row_orderRRall$geneSym,
+  # Show row names (from the matrix) on the right
+  show_row_names = TRUE,
+  row_names_side = "right",
+  # put them on the right
+  cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
+  # cluster_rows=TRUE,
+  # clustering_method_columns="ward.D",
+  # clustering_method_rows = "ward.D",
+  row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
+  row_split = factor(row_orderRRall$Grouping),
+  row_gap = unit(2, "mm"),
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    if (all_sig_mat[i, j] != "") {
+      grid.text(
+        all_sig_mat[i, j],
+        x, y,
+        gp = gpar(fontsize = 6, col = "red")
+      )
+    }
+  },
+  # row_km = 12,
+  # column_km=9,
+  # column_km_repeats=100,
+  # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
+  row_title_gp = gpar(font = 2, fontsize = 6),
+  row_title_rot = 0,
+  row_names_gp = gpar(fontsize = 6),
+  cluster_column_slices = FALSE,
+  column_order = column_split_factor,
+  # column_split = column_split_factorall, # <- visually separates minusP vs plusP
+  column_gap = unit(2, "mm"),
+  column_title = "ZBF +vuFUN TC",
+  # column_title_side = "bottom",
+  column_title_gp = gpar(fontsize = 15, fontface = "bold"),
+  heatmap_legend_param = list(
+    title = "shrunklog2FC",
+    title_gp = gpar(fontsize = 10, fontface = "bold"),
+    labels_gp = gpar(fontsize = 8),
+    at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
+    labels = seq(-4, 4, by = 2) # what to print next to these ticke
+  )
 )
 dev.off()
 
 
-#More comparisons
+##### Step 19?: Now what if we want to look at contrasting comparisons eh? e.g. contrasting expresssion ####
+# More comparisons
 
 SingleNSingleDay_vufunvsWT_merged_DEG <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined_DEG.xlsx")
 colnames(SingleNSingleDay_vufunvsWT_merged_DEG)
+SingleGenoSingleDay_plusN_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx") # all genes
+SingleNSingleDay_vufunvsWT_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined.xlsx") # all genes
+ALLGENEMERGED <- left_join(SingleNSingleDay_vufunvsWT_merged, SingleGenoSingleDay_plusN_merged, by = "locusName")
+writexl::write_xlsx(ALLGENEMERGED, path = "BothComparisonsCombined.xlsx")
+ALLGENEMERGED <- readxl::read_xlsx(path = "BothComparisonsCombined.xlsx") # 31337 genes
+View(SingleNSingleDay_vufunvsWT_merged)
 
-#Leave out if not useful
 SingleNSingleDay_vufunvsWT_merged_DEG <- SingleNSingleDay_vufunvsWT_merged_DEG %>%
-  left_join(SingleGenoSingleDay_plusN_merged,by="locusName")
-vufun2_vs_WT_plusN_D3_DEG <- SingleNSingleDay_vufunvsWT_merged_DEG %>%
-  filter(padj_finresD3_plusN < 0.05)
+  left_join(SingleGenoSingleDay_plusN_merged, by = "locusName") # This combines both within and between genotype differences, with the pre-requisite requirement that it is DEG in at least one condition for between genotype comparisons.
 
-super_annot <- left_join(annotations_GL,RRgenes,by="locusName")
-vufun2_vs_WT_plusN_D3_DEG_annot <- left_join(vufun2_vs_WT_plusN_D3_DEG,super_annot[,c("locusName","Function","Gene Name")],by="locusName")
+# creating some prefiltered lists depending on what we want to look at
+vufun2_vs_WT_plusN_D3_DEG <- ALLGENEMERGED %>%
+  filter(padj_finresD3_plusN < 0.05) # has to be DEG at D3, plus N for vufun vs WT #924
+str(vufun2_vs_WT_plusN_D3_DEG)
+
+vufun2_vs_WT_plusN_D1_DEG <- ALLGENEMERGED %>%
+  filter(padj_finresD1_plusN < 0.05 & !is.na(padj_finresD3_plusN))# has to be DEG at D1, plus N for vufun vs WT #1,486
+str(vufun2_vs_WT_plusN_D1_DEG)
+
+vufun2_vs_WT_plusN_D1and_D3_DEG <- ALLGENEMERGED %>%
+  filter(padj_finresD1_plusN < 0.05 & padj_finresD3_plusN) # has to be DEG at D1, plus N for vufun vs WT #223 
+str(vufun2_vs_WT_plusN_D1and_D3_DEG)
+head(vufun2_vs_WT_plusN_D1and_D3_DEG$padj_finresD3_plusN, n = 500)
+
+
+vufun2_vs_WT_plusN_D1or_D3_DEG <- ALLGENEMERGED %>%
+  filter(padj_finresD1_plusN < 0.05 | padj_finresD3_plusN < 0.05) # has to be DEG either at D1 or D3, plus N for vufun vs WT #2,187
+str(vufun2_vs_WT_plusN_D1D3_DEG)
+
+
+vufun2_vs_WT_plusN_D1_DEG_unique <- vufun2_vs_WT_plusN_D1_DEG %>%
+  filter(
+    (lfcs_D1_vufun_plusN > 0 & lfcs_D1_WT_plusN < 0) |
+      (lfcs_D1_vufun_plusN < 0 & lfcs_D1_WT_plusN > 0)
+  ) # For the DEG at D1 or D3 at plus N for vufun vs WT, keep genes that have contrasting expression profile in response to +N
+str(vufun2_vs_WT_plusN_D1D3_DEG_unique) # 373 genes
+
+vufun2_vs_WT_plusN_D1and_D3_DEG_unique <- vufun2_vs_WT_plusN_D1and_D3_DEG %>%
+  filter(
+    (lfcs_D1_vufun_plusN > 0 & lfcs_D1_WT_plusN < 0) |
+      (lfcs_D1_vufun_plusN < 0 & lfcs_D1_WT_plusN > 0)
+  ) # For the DEG at D1 or D3 at plus N for vufun vs WT, keep genes that have contrasting expression profile in response to +N
+str(vufun2_vs_WT_plusN_D1and_D3_DEG_unique) # 367 genes
+View(vufun2_vs_WT_plusN_D1and_D3_DEG)
+
+
+vufun2_vs_WT_plusN_D1D3_DEG_unique_ZBF <- left_join(vufun2_vs_WT_plusN_D1D3_DEG_unique, ZBFall, by = "locusName")
+
+
+super_annot <- left_join(annotations_GL, RRgenes, by = "locusName")
+
+vufun2_vs_WT_plusN_D3_DEG_annot <- left_join(vufun2_vs_WT_plusN_D3_DEG, super_annot[, c("locusName", "Function", "Gene Name")], by = "locusName")
+
 colnames(vufun2_vs_WT_plusN_D3_DEG)
-ST_SD_vufun2vsWT_merged_DEG_mat <- vufun2_vs_WT_plusN_D3_DEG[,-c(14:19)] %>%
+
+ST_SD_vufun2vsWT_merged_DEG_mat <- vufun2_vs_WT_plusN_D3_DEG[, -c(14:19)] %>%
   select(locusName, starts_with("lfcs_")) %>%
   column_to_rownames("locusName") %>%
   as.matrix()
-colnames(ST_SD_vufun2vsWT_merged_DEG_mat)
-col_order <- colnames(ST_SD_vufun2vsWT_merged_DEG_mat)
+
+colnames(vufun2_vs_WT_plusN_D1_DEG)
+
+ST_SD_vufun2vsWT_merged_DEG_mat_D1only <- vufun2_vs_WT_plusN_D1_DEG %>%
+  select(locusName, starts_with("lfcs_")) %>%
+  column_to_rownames("locusName") %>%
+  as.matrix()
+
+ST_SD_vufun2vsWT_merged_DEG_mat_D1D3 <- vufun2_vs_WT_plusN_D1D3_DEG %>%
+  select(locusName, starts_with("lfcs_")) %>%
+  column_to_rownames("locusName") %>%
+  as.matrix()
+
+ST_SD_vufun2vsWT_merged_DEG_mat_D1_unique <- vufun2_vs_WT_plusN_D1_DEG_unique %>%
+  select(locusName, starts_with("lfcs_")) %>%
+  column_to_rownames("locusName") %>%
+  as.matrix()
+
+ST_SD_vufun2vsWT_merged_DEG_mat_D1_andD3_unique <- vufun2_vs_WT_plusN_D1and_D3_DEG_unique %>%
+  select(locusName, starts_with("lfcs_")) %>%
+  column_to_rownames("locusName") %>%
+  as.matrix()
+str(ST_SD_vufun2vsWT_merged_DEG_mat_D1_andD3_unique)
+
+colnames(vufun2_vs_WT_plusN_D1D3_DEG)
+ST_SD_vufun2vsWT_merged_DEG_mat_D1D3_unique_ZBF <- vufun2_vs_WT_plusN_D1D3_DEG_unique_ZBF %>%
+  select(locusName, starts_with("lfcs_")) %>%
+  column_to_rownames("locusName") %>%
+  as.matrix()
+
+colnames(ST_SD_vufun2vsWT_merged_DEG_mat_D1D3_unique_ZBF)
+ST_SD_vufun2vsWT_merged_DEG_mat_D1D3_unique_ZBF_filt <- ST_SD_vufun2vsWT_merged_DEG_mat_D1D3_unique_ZBF[, c(5, 7, 6, 8, 9, 10, 11, 12, 13, 14)]
+
+colnames(ST_SD_vufun2vsWT_merged_DEG_mat_D1_unique)
+col_order <- colnames(ST_SD_vufun2vsWT_merged_DEG_mat_D1_unique)
 column_split_factor <- factor(col_order, levels = col_order)
 
 # Fantastic, now we do some heatmaps
 dev.off()
-pdf("vufun2vsWTD3_plusN_locusName.pdf", height = 12)
-set.seed(123)
-ht=Heatmap(ST_SD_vufun2vsWT_merged_DEG_mat,
-        col = colfun,
-        use_raster = TRUE,
-        cluster_columns = FALSE,
-        #row_labels = row_orderRRall$geneSym,
-        # Show row names (from the matrix) on the right
-        show_row_names = FALSE,
-        #row_names_side = "right",
-        # put them on the right
-        #cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
-        cluster_rows=TRUE,
-        cluster_row_slices = TRUE,
-        clustering_method_columns="ward.D",
-        clustering_method_rows = "ward.D",
-        #row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
-        #row_split = factor(row_orderRRall$Grouping),
-        row_gap = unit(2, "mm"),
-        row_km = 26,
-        # column_km=9,
-        # column_km_repeats=100,
-         row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
-        row_title_gp = gpar(font = 2, fontsize = 6),
-        row_title_rot = 0,
-        row_names_gp = gpar(fontsize = 6),
-        cluster_column_slices = FALSE,
-        column_split = column_split_factor, # <- visually separates minusP vs plusP
-        column_gap = unit(2, "mm"),
-        #column_names_rot=90,
-        # column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N:While Transcriptome",
-        # column_title_side = "bottom",
-        column_title_gp = gpar(fontsize = 15, fontface = "bold"),
-        heatmap_legend_param = list(
-          title = "shrunklog2FC",
-          title_gp = gpar(fontsize = 10, fontface = "bold"),
-          labels_gp = gpar(fontsize = 8),
-          at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
-          labels = seq(-4, 4, by = 2) # what to print next to these ticke
-        )
+pdf("vufun2vsWTD1_and_D3DEG_plusN_30clusters.pdf", height = 12)
+ht <- Heatmap(ST_SD_vufun2vsWT_merged_DEG_mat_D1_unique,
+  col = colfun,
+  use_raster = TRUE,
+  cluster_columns = FALSE,
+  # row_labels = row_orderRRall$geneSym,
+  # Show row names (from the matrix) on the right
+  show_row_names = FALSE,
+  # row_names_side = "right",
+  # put them on the right
+  # cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
+  cluster_rows = TRUE,
+  cluster_row_slices = TRUE,
+  # clustering_method_columns="ward.D",
+  clustering_method_rows = "ward.D",
+  row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
+  # row_split = factor(row_orderRRall$Grouping),
+  row_gap = unit(1, "mm"),
+  row_km = 30,
+  # column_km=9,
+  # column_km_repeats=100,
+  row_km_repeats = 100, # divide into clusters by kmeans, repeat 100 use consensus
+  row_title_gp = gpar(font = 2, fontsize = 8),
+  row_title_rot = 0,
+  row_names_gp = gpar(fontsize = 6),
+  cluster_column_slices = FALSE,
+  column_split = column_split_factor, # <- visually separates minusP vs plusP
+  column_gap = unit(2, "mm"),
+  # column_names_rot=90,
+  # column_title = "vufun TC +N exp: Within genotype differences per timepoint to +N:While Transcriptome",
+  # column_title_side = "bottom",
+  # column_title_gp = gpar(fontsize = 15, fontface = "bold"),
+  heatmap_legend_param = list(
+    title = "shrunklog2FC",
+    title_gp = gpar(fontsize = 10, fontface = "bold"),
+    labels_gp = gpar(fontsize = 8),
+    at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
+    labels = seq(-4, 4, by = 2) # what to print next to these ticke
+  )
 )
-HM=draw(ht)
+set.seed(123) # NEED to set it right before generating the HM=draw(ht) step in order to get some clusters
+HM <- draw(ht)
 dev.off()
-#extract clusters
-library(magrittr)
-r.dend <- row_dend(HM)  #If needed, extract row dendrogram
-rcl.list <- row_order(HM)  #Extract clusters (output is a list)
-lapply(rcl.list, function(x) length(x)) #check/confirm size gene clusters
-# Extract clusters as a data.frame
-clusterlist = row_order(HM)
 
-clu_df <- lapply(names(rcl.list), function(i){
-  out <- data.frame(locusName = rownames(ST_SD_vufun2vsWT_merged_DEG_mat[rcl.list[[i]],]), #rownames(tf.log)[clusterlist[[i]]], #if cluster somehow only has one gene. https://www.biostars.org/p/465304/
-                    Cluster = paste0("cluster", i),
-                    stringsAsFactors = FALSE)
+# extract clusters
+library(magrittr)
+r.dend <- row_dend(HM) # If needed, extract row dendrogram
+rcl.list <- row_order(HM) # Extract clusters (output is a list)
+lapply(rcl.list, function(x) length(x)) # check/confirm size gene clusters
+# Extract clusters as a data.frame
+clusterlist <- row_order(HM)
+
+clu_df <- lapply(names(rcl.list), function(i) {
+  out <- data.frame(
+    locusName = rownames(ST_SD_vufun2vsWT_merged_DEG_mat_D1_andD3_unique[rcl.list[[i]], , drop = FALSE]),
+    Cluster = paste0("cluster", i),
+    stringsAsFactors = FALSE
+  )
   return(out)
-}) %>%  #pipe (forward) the output 'out' to the function rbind to create 'clu_df'
+}) %>%
   do.call(rbind, .)
 
+DAPseqVulowconfannot
 
 clu_dfannot <- clu_df %>%
-  left_join(super_annot,by= "locusName") %>%
-  left_join(DAPseqVu,by="locusName")
+  left_join(annotations_GLultra, by = "locusName") %>%
+  # left_join(DAPseqVu,by="locusName") %>%
+  # left_join(DAPseqVulowconfannot[,c("locusName","DAPseqRep")],by="locusName") %>%
+  left_join(vufun2_vs_WT_plusN_D1_DEG_unique, by = "locusName")
 
-View(clu_df)
+View(vufun2_vs_WT_plusN_D1_DEG_unique)
+
+
+# clu_dfannot$Cluster <-   as.factor(clu_dfannot$Cluster)
+levels(clu_dfannot$Cluster)
+View(clu_dfannot)
+
 writexl::write_xlsx(
   clu_dfannot,
-  "extractedclusters_DEG_vufunvsWT_plusN_D3.xlsx"
+  "extractedclusters30_DEG_vufunvsWT_plusN_D1_contrasts.xlsx"
 )
 
-#
+
+##### Step 20: Creation of supertable #####
+
+# DAPseqtargets
+cowpeaRNA_DAPseq_ortho_pluslotusannot <- readxl::read_xlsx(path = "C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/cowpeaRNA_DAPseq_pooled_orthogroups_Vu_Lj_Gm_formatted_lowconfidence.xlsx")
+cowpeaRNA_DAPseq_ortho_pluslotusannot <- rename(cowpeaRNA_DAPseq_ortho_pluslotusannot, "geneID" = "locusName")
+# contrasts
+vufunvsWT_plusN_D1_clusters <- readxl::read_xlsx(path = "extractedclusters30_DEG_vufunvsWT_plusN_D1_contrasts.xlsx")
+View(vufunvsWT_plusN_D1and_D3_clusters)
+# between genotype differences
+SingleNSingleDay_vufunvsWT_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined.xlsx") # all genes
+View(SingleNSingleDay_vufunvsWT_merged)
+SingleNSingleDay_vufunvsWT_merged_DEG <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined_DEG.xlsx") # DEGS only
+colnames(SingleNSingleDay_vufunvsWT_merged)
+# within genotype differences
+SingleGenoSingleDay_plusN_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx") # all genes
+SingleGenoSingleDay_plusN_merged_DEG <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined_DEG.xlsx") # DEGs only
+# ZBF muts
+ZBFANALYSIS <- readxl::read_xlsx("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/ZBF1_ZBF28_ZBF_2025/quantsZBF1_ZBF28/ZBF1315_intersects_fullannot.xlsx")
+str(ZBFbothrronly_DEG)
+colnames(ZBFANALYSIS)
+# Gene Annot
+annotations_GL <- read.csv(file = "P:/LAB - OPV - Dugald_Reid/Genomics/Reference Genomes/Vunguiculata/v1.2/annotation/Vunguiculata_540_v1.2.P14.annotation_info_GL.csv", header = TRUE)
+RRgenes <- readxl::read_xlsx("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/Panfaba work/RobRoy_Vuadded.xlsx")
+colnames(RRgenes)
+RRgenes$locusName <- RRgenes$Vunguiculata
+# Orthogroups
+orthogroupslong <- read.csv("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/longformatorthogroups.csv", header = TRUE)
+head(orthogroupslong)
+head(filter(orthogroupslong, startsWith(Species, "Vungu")))
+orthogroupslong <- rename(orthogroupslong, "geneID" = "locusName")
+annotations_GLpro <- annotations_GL %>%
+  left_join(select(orthogroupslong, locusName, Orthogroup, Gene.name), by = "locusName")
+View(annotations_GLpro)
+orthogroupswide <- read.csv("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/Legume orthogroups - with gene names.csv", header = TRUE)
+colnames(orthogroupswide)
+annotations_GLultra <- annotations_GLpro %>%
+  left_join(orthogroupswide, by = "Orthogroup") %>%
+  left_join(RRgenes, by = "locusName")
+View(annotations_GLultra)
+writexl::write_xlsx(annotations_GLultra, path = "Vunguiculata_540_v1.2.P14.annotation_info_GL_allorthogroups_RR.xlsx")
+
+# Starting with between genotype differences what are the filters we can apply?
+str(SingleNSingleDay_vufunvsWT_merged)
+vufun_vs_WT_diff <- SingleNSingleDay_vufunvsWT_merged %>%
+  # ---- All conditions ---- #
+  mutate(vufun_vs_WT_DEG = case_when(
+    padj_finresD1_minusN < 0.05 & padj_finresD1_plusN < 0.05 &
+      padj_finresD3_minusN < 0.05 & padj_finresD3_plusN < 0.05 ~ "all",
+
+    # ---- ANY 3 ----
+    (padj_finresD1_minusN >= 0.05 | is.na(padj_finresD1_minusN)) &
+      padj_finresD1_plusN < 0.05 & padj_finresD3_minusN < 0.05 & padj_finresD3_plusN < 0.05 ~ "D1+ D3- D3+",
+    padj_finresD1_minusN < 0.05 &
+      (padj_finresD1_plusN >= 0.05 | is.na(padj_finresD1_plusN)) &
+      padj_finresD3_minusN < 0.05 & padj_finresD3_plusN < 0.05 ~ "D1- D3- D3+",
+    padj_finresD1_minusN < 0.05 & padj_finresD1_plusN < 0.05 &
+      (padj_finresD3_minusN >= 0.05 | is.na(padj_finresD3_minusN)) &
+      padj_finresD3_plusN < 0.05 ~ "D1- D1+ D3+",
+    padj_finresD1_minusN < 0.05 & padj_finresD1_plusN < 0.05 &
+      padj_finresD3_minusN < 0.05 &
+      (padj_finresD3_plusN >= 0.05 | is.na(padj_finresD3_plusN)) ~ "D1- D1+ D3-",
+
+    # ---- ANY 2 ----
+    padj_finresD1_minusN < 0.05 & padj_finresD1_plusN < 0.05 &
+      (padj_finresD3_minusN >= 0.05 | is.na(padj_finresD3_minusN)) &
+      (padj_finresD3_plusN >= 0.05 | is.na(padj_finresD3_plusN)) ~ "D1- D1+",
+    padj_finresD1_minusN < 0.05 &
+      (padj_finresD1_plusN >= 0.05 | is.na(padj_finresD1_plusN)) &
+      padj_finresD3_minusN < 0.05 &
+      (padj_finresD3_plusN >= 0.05 | is.na(padj_finresD3_plusN)) ~ "D1- D3-",
+    padj_finresD1_minusN < 0.05 &
+      (padj_finresD1_plusN >= 0.05 | is.na(padj_finresD1_plusN)) &
+      (padj_finresD3_minusN >= 0.05 | is.na(padj_finresD3_minusN)) &
+      padj_finresD3_plusN < 0.05 ~ "D1- D3+",
+    (padj_finresD1_minusN >= 0.05 | is.na(padj_finresD1_minusN)) &
+      padj_finresD1_plusN < 0.05 & padj_finresD3_minusN < 0.05 &
+      (padj_finresD3_plusN >= 0.05 | is.na(padj_finresD3_plusN)) ~ "D1+ D3-",
+    (padj_finresD1_minusN >= 0.05 | is.na(padj_finresD1_minusN)) &
+      padj_finresD1_plusN < 0.05 &
+      (padj_finresD3_minusN >= 0.05 | is.na(padj_finresD3_minusN)) &
+      padj_finresD3_plusN < 0.05 ~ "D1+ D3+",
+    (padj_finresD1_minusN >= 0.05 | is.na(padj_finresD1_minusN)) &
+      (padj_finresD1_plusN >= 0.05 | is.na(padj_finresD1_plusN)) &
+      padj_finresD3_minusN < 0.05 & padj_finresD3_plusN < 0.05 ~ "D3- D3+",
+
+    # ---- ANY 1 ----
+    padj_finresD1_minusN < 0.05 &
+      (padj_finresD1_plusN >= 0.05 | is.na(padj_finresD1_plusN)) &
+      (padj_finresD3_minusN >= 0.05 | is.na(padj_finresD3_minusN)) &
+      (padj_finresD3_plusN >= 0.05 | is.na(padj_finresD3_plusN)) ~ "D1- only",
+    (padj_finresD1_minusN >= 0.05 | is.na(padj_finresD1_minusN)) &
+      padj_finresD1_plusN < 0.05 &
+      (padj_finresD3_minusN >= 0.05 | is.na(padj_finresD3_minusN)) &
+      (padj_finresD3_plusN >= 0.05 | is.na(padj_finresD3_plusN)) ~ "D1+ only",
+    (padj_finresD1_minusN >= 0.05 | is.na(padj_finresD1_minusN)) &
+      (padj_finresD1_plusN >= 0.05 | is.na(padj_finresD1_plusN)) &
+      padj_finresD3_minusN < 0.05 &
+      (padj_finresD3_plusN >= 0.05 | is.na(padj_finresD3_plusN)) ~ "D3- only",
+    (padj_finresD1_minusN >= 0.05 | is.na(padj_finresD1_minusN)) &
+      (padj_finresD1_plusN >= 0.05 | is.na(padj_finresD1_plusN)) &
+      (padj_finresD3_minusN >= 0.05 | is.na(padj_finresD3_minusN)) &
+      padj_finresD3_plusN < 0.05 ~ "D3+ only"
+  ))
+
+
+sum(!is.na(vufun_vs_WT_diff$vufun_vs_WT_DEG))
+
+View(SingleGenoSingleDay_plusN_merged)
+colnames(SingleGenoSingleDay_plusN_merged)
+str(SingleGenoSingleDay_plusN_merged)
+vufunandWT_plusN_diff <- SingleGenoSingleDay_plusN_merged %>%
+  # ---- All conditions ---- #
+  mutate(plusNresponse = case_when(
+    padj_D1_vufun_plusN < 0.05 & padj_D1_WT_plusN < 0.05 &
+      padj_D3_vufun_plusN < 0.05 & padj_D3_WT_plusN < 0.05 ~ "all",
+
+    # ---- ANY 3 ----
+    (padj_D1_vufun_plusN >= 0.05 | is.na(padj_D1_vufun_plusN)) &
+      padj_D1_WT_plusN < 0.05 & padj_D3_vufun_plusN < 0.05 & padj_D3_WT_plusN < 0.05 ~ "D1WT D3Vu D3WT",
+    padj_D1_vufun_plusN < 0.05 &
+      (padj_D1_WT_plusN >= 0.05 | is.na(padj_D1_WT_plusN)) &
+      padj_D3_vufun_plusN < 0.05 & padj_D3_WT_plusN < 0.05 ~ "D1Vu D3Vu D3WT",
+    padj_D1_vufun_plusN < 0.05 & padj_D1_WT_plusN < 0.05 &
+      (padj_D3_vufun_plusN >= 0.05 | is.na(padj_D3_vufun_plusN)) &
+      padj_D3_WT_plusN < 0.05 ~ "D1Vu D1WT D3WT",
+    padj_D1_vufun_plusN < 0.05 & padj_D1_WT_plusN < 0.05 &
+      padj_D3_vufun_plusN < 0.05 &
+      (padj_D3_WT_plusN >= 0.05 | is.na(padj_D3_WT_plusN)) ~ "D1Vu D1WT D3Vu",
+
+    # ---- ANY 2 ----
+    padj_D1_vufun_plusN < 0.05 & padj_D1_WT_plusN < 0.05 &
+      (padj_D3_vufun_plusN >= 0.05 | is.na(padj_D3_vufun_plusN)) &
+      (padj_D3_WT_plusN >= 0.05 | is.na(padj_D3_WT_plusN)) ~ "D1vu D1WT",
+    padj_D1_vufun_plusN < 0.05 &
+      (padj_D1_WT_plusN >= 0.05 | is.na(padj_D1_WT_plusN)) &
+      padj_D3_vufun_plusN < 0.05 &
+      (padj_D3_WT_plusN >= 0.05 | is.na(padj_D3_WT_plusN)) ~ "D1Vu D3Vu",
+    padj_D1_vufun_plusN < 0.05 &
+      (padj_D1_WT_plusN >= 0.05 | is.na(padj_D1_WT_plusN)) &
+      (padj_D3_vufun_plusN >= 0.05 | is.na(padj_D3_vufun_plusN)) &
+      padj_D3_WT_plusN < 0.05 ~ "D1Vu D3WT",
+    (padj_D1_vufun_plusN >= 0.05 | is.na(padj_D1_vufun_plusN)) &
+      padj_D1_WT_plusN < 0.05 & padj_D3_vufun_plusN < 0.05 &
+      (padj_D3_WT_plusN >= 0.05 | is.na(padj_D3_WT_plusN)) ~ "D1WT D3Vu",
+    (padj_D1_vufun_plusN >= 0.05 | is.na(padj_D1_vufun_plusN)) &
+      padj_D1_WT_plusN < 0.05 &
+      (padj_D3_vufun_plusN >= 0.05 | is.na(padj_D3_vufun_plusN)) &
+      padj_D3_WT_plusN < 0.05 ~ "D1WT D3WT",
+    (padj_D1_vufun_plusN >= 0.05 | is.na(padj_D1_vufun_plusN)) &
+      (padj_D1_WT_plusN >= 0.05 | is.na(padj_D1_WT_plusN)) &
+      padj_D3_vufun_plusN < 0.05 & padj_D3_WT_plusN < 0.05 ~ "D3Vu D3WT",
+
+    # ---- ANY 1 ----
+    padj_D1_vufun_plusN < 0.05 &
+      (padj_D1_WT_plusN >= 0.05 | is.na(padj_D1_WT_plusN)) &
+      (padj_D3_vufun_plusN >= 0.05 | is.na(padj_D3_vufun_plusN)) &
+      (padj_D3_WT_plusN >= 0.05 | is.na(padj_D3_WT_plusN)) ~ "D1Vu only",
+    (padj_D1_vufun_plusN >= 0.05 | is.na(padj_D1_vufun_plusN)) &
+      padj_D1_WT_plusN < 0.05 &
+      (padj_D3_vufun_plusN >= 0.05 | is.na(padj_D3_vufun_plusN)) &
+      (padj_D3_WT_plusN >= 0.05 | is.na(padj_D3_WT_plusN)) ~ "D1WT only",
+    (padj_D1_vufun_plusN >= 0.05 | is.na(padj_D1_vufun_plusN)) &
+      (padj_D1_WT_plusN >= 0.05 | is.na(padj_D1_WT_plusN)) &
+      padj_D3_vufun_plusN < 0.05 &
+      (padj_D3_WT_plusN >= 0.05 | is.na(padj_D3_WT_plusN)) ~ "D3Vu only",
+    (padj_D1_vufun_plusN >= 0.05 | is.na(padj_D1_vufun_plusN)) &
+      (padj_D1_WT_plusN >= 0.05 | is.na(padj_D1_WT_plusN)) &
+      (padj_D3_vufun_plusN >= 0.05 | is.na(padj_D3_vufun_plusN)) &
+      padj_D3_WT_plusN < 0.05 ~ "D3WT only"
+  ))
+
+
+SingleGenoSingleDay_plusN_merged
+str(vufun_vs_WT_diff)
+str(vufunandWT_plusN_diff)
+str(vufunvsWT_plusN_D1_clusters)
+str(cowpeaRNA_DAPseq_ortho_pluslotusannot)
+View(vufunvsWT_plusN_D1and_D3_clusters)
+Supertable <- vufunvsWT_plusN_D1_clusters %>%
+  select(locusName, Cluster) %>%
+  right_join(select(vufunandWT_plusN_diff, locusName, starts_with(c("lfcs_", "padj_")), plusNresponse), by = "locusName") %>%
+  right_join(select(vufun_vs_WT_diff, locusName, starts_with(c("lfcs_", "padj_")), vufun_vs_WT_DEG), by = "locusName") %>%
+  left_join(select(cowpeaRNA_DAPseq_ortho_pluslotusannot, locusName, DAPseqRep, Vu_1d, Vu_3d, Vu_5d, geneIDVu_Vunguiculata, geneIDLj_Ljaponicus, geneIDGmax_Gmax, RNAseqDEG), by = "locusName") %>%
+  left_join(annotations_GLultra, by = "locusName")
+View(Supertable)
+View(vufunvsWT_plusN_D1_clusters)
+
+
+sum(!is.na(Supertable$Cluster))
+
+
+Inspection <- Supertable %>%
+  select(locusName, Cluster,vufun_vs_WT_DEG ) %>%
+  filter(!is.na(Cluster))
+View(Inspection)
+writexl::write_xlsx(Supertable, path = "Database_ver3.xlsx")
+
+# Step 20: GO term analysis ####
+# Prefill from other projects, but concept is the same. Will update later when I actually fun the analysis.
+#ok, now ready for GO terms.
+library(clusterProfiler)
+
+#build the c#build the c#build the comparison
+all_GO_comp <- compareCluster(geneCluster = clu_list,
+                              
+                              fun = "enrichGO",
+                              
+                              OrgDb = "org.Csativa.eg.db",
+                              
+                              ont="BP",
+                              
+                              pAdjustMethod = 'fdr',
+                              
+                              keyType = 'GID', # this was used when creating org.Csativa.eg.db
+                              
+                              qvalueCutoff  = 0.01,
+                              
+                              minGSSize = 10 # min gene number per GO term, will determine which modules might fall out, soemthing to play with
+                              
+)
+
+
+# problem is that the qvalues dont scale nicely in the dotplot, so first
+
+# use cutoff, e.g. logcut =10 and generate the -logs
+
+
+logcut = 20
+
+  
+
+logs = as.data.frame(all_GO_comp@compareClusterResult$qvalue)
+
+colnames(logs) = 'qvalue'
+
+
+
+logs = logs %>%
+  
+  mutate(nlogq = case_when(
+    
+    -log(qvalue) > logcut ~ logcut, # everything above cutoff
+    
+    -log(qvalue) <= logcut ~ -log(qvalue)))
+
+#now add those logs back to object to use.
+all_GO_comp@compareClusterResult$nlogq = logs$nlogq
+
+options(enrichplot.colours = c("#408ea4","#c5242a"))
+
+dotplot(all_GO_comp,
+        
+        showCategory=20, # top20 for every module
+        
+        color='nlogq',
+        includeAll=TRUE, # this is important to keep the ones that are overlapping
+        
+        font.size =  10,
+        
+        x = 'Cluster',
+        title='All Go Modules') +
+  
+  scale_color_viridis_c(option = "viridis",direction=-1)
+
+dev.off()
+ggsave('all_GO_modules_top20.pdf', width = 25, height = 25, unit = 'cm')
+
+
+all_GO_summary = as.data.frame(all_GO_comp)
+
+write.csv(all_GO_summary, 'all_GO_summary.csv')
+
+view(clu_df2)
+dev.off()
+
+# first need to prepare a GoSemSim object first:
+GOdata = godata(
+  
+  OrgDb = "org.Csativa.eg.db",
+  
+  keytype = "GID",
+  
+  ont = 'BP',
+  
+  computeIC = TRUE,
+  
+  processTCSS = TRUE,
+  
+  cutoff = NULL
+  
+)
+
+# now use the above to simplify
+
+# need to specify clusterProfiler::simplify because of some other function with the same name :(
+
+# without semData = GOdata it only works using measure = 'Wang' and semdata = NULL
+
+
+all_GO_comp_simple = clusterProfiler::simplify(
+
+  all_GO_comp,
+
+  cutoff = 0.7, # lower number = fewer GOs
+
+  by = "qvalue",
+
+  select_fun = min,
+
+  measure = "Rel",
+
+  semData = GOdata)
+
+
+
+dotplot(all_GO_comp_simple,
+        
+        showCategory=10, # top10 for every module
+        
+        includeAll=TRUE, # this is important to keep the ones that are overlapping
+        
+        color="nlogq",
+        
+        font.size = 14,
+        
+        x = 'Cluster',
+        title= 'Simplified') +
+  
+  #scale_color_viridis_c(option = "cividis")+
+  
+  #scale_color_viridis_c(option = "inferno")
+  
+  scale_color_viridis_c(option = "viridis")
+
+
+ggsave('Simplified_GO.pdf', width = 35, height = 35, unit = 'cm')
+
+all_GO_comp_simple_drop = dropGO(all_GO_comp_simple, level = c(1,2,3))
+
+
+dotplot(all_GO_comp_simple_drop,
+        
+        showCategory=20, # top20 for every module
+        
+        includeAll=TRUE, # this is important to keep the ones that are overlapping
+        
+        color='nlogq',
+        
+        font.size = 5,
+        
+        x = 'Cluster',
+        title= 'Simplified and dropping high level GO terms') +
+  
+  scale_color_viridis_c(option = "viridis")
+
+ggsave('Simpliedanddroppinghighlevels_GO.pdf', width = 25, height = 35, unit = 'cm')
+
+write.csv(all_GO_comp_simple_drop, 'all_GO_comp_simple_drop.csv')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##### This bit is for DEG barplots #####
 # Great now, lets do some general stats
+View(SingleGenoSingleDay_plusN_merged)
 str(SingleGenoSingleDay_plusN_merged)
 str(SingleNSingleDay_vufunvsWT_merged)
-
+SingleGenoSingleDay_plusN_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx") # all genes
 # Define your lines
-lines <- c("D1_vufun_plusN", "D1_WT_plusN", "D3_vufun_plusN","D3_WT_plusN")
-lines13 <- c("DBL21", "DBL19", "HA11", "HA3", "ADMD17", "WT15")
+lines <- c("D1_vufun_plusN", "D1_WT_plusN", "D3_vufun_plusN", "D3_WT_plusN")
 # Loop through each line and calculate up/down DEGs
-lines <- c("D1_vufun_plusN", "D1_WT_plusN", "D3_vufun_plusN","D3_WT_plusN")
-
+lines <- c("D1_vufun_plusN", "D1_WT_plusN", "D3_vufun_plusN", "D3_WT_plusN")
+colnames(SingleGenoSingleDay_plusN_merged)
 deg_summary <- lapply(lines, function(line) {
-  
   lfc_col <- paste0("lfc_", line)
   padj_col <- paste0("padj_", line)
-  
+
   df <- data.frame(
     lfc = SingleGenoSingleDay_plusN_merged[[lfc_col]],
     padj = SingleGenoSingleDay_plusN_merged[[padj_col]]
   ) %>%
     filter(!is.na(padj), padj < 0.05)
-  
+
   data.frame(
     line = line,
     up = sum(df$lfc > 0),
@@ -1455,14 +1892,14 @@ df_long <- deg_summary %>%
     Treatment = line
   )
 
-a=ggplot(df_long, aes(x = Treatment, y = ifelse(Direction == "Up", Count, -Count), fill = Direction)) +
+a <- ggplot(df_long, aes(x = Treatment, y = ifelse(Direction == "Up", Count, -Count), fill = Direction)) +
   geom_bar(stat = "identity", position = "stack", alpha = 0.65) +
   geom_text(aes(label = Count),
-            position = position_stack(vjust = 0.5),
-            fontface = "bold", size = 4.5
+    position = position_stack(vjust = 0.5),
+    fontface = "bold", size = 4.5
   ) +
   scale_fill_manual(values = c("Down" = "#408ea4", "Up" = "#c5242a")) +
-  #scale_x_discrete(limits = c("DBL21", "DBL19", "HA11","HA3", "ADMD17" , "WT13")) + # custom order
+  # scale_x_discrete(limits = c("DBL21", "DBL19", "HA11","HA3", "ADMD17" , "WT13")) + # custom order
   labs(
     title = "Upregulated and Downregulated DEGs for within genotype differences to +N",
     x = "ZBF Line",
@@ -1484,8 +1921,10 @@ a=ggplot(df_long, aes(x = Treatment, y = ifelse(Direction == "Up", Count, -Count
   )
 
 a
-+#df_longbetween
++ # df_longbetween
 
+  SingleNSingleDay_vufunvsWT_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_VS_WT_combined.xlsx") # all genes
+colnames(SingleNSingleDay_vufunvsWT_merged)
 linesbetween <- c(
   "finresD1_minusN",
   "finresD1_plusN",
@@ -1494,27 +1933,24 @@ linesbetween <- c(
 )
 
 deg_summarybetween <- lapply(linesbetween, function(line) {
-  
-  lfc_col  <- paste0("lfc_", line)
+  lfc_col <- paste0("lfc_", line)
   padj_col <- paste0("padj_", line)
-  
+
   df <- data.frame(
     lfc  = SingleNSingleDay_vufunvsWT_merged[[lfc_col]],
     padj = SingleNSingleDay_vufunvsWT_merged[[padj_col]]
   ) %>%
     filter(!is.na(padj), padj < 0.05)
-  
+
   data.frame(
     contrast = line,
     up = sum(df$lfc > 0),
     down = sum(df$lfc < 0),
     total_DEG = nrow(df)
   )
-  
 }) %>% bind_rows()
 
 deg_summarybetween
-
 
 
 df_longbetween <- deg_summarybetween %>%
@@ -1526,14 +1962,14 @@ df_longbetween <- deg_summarybetween %>%
 
 df_longbetween
 
-b=ggplot(df_longbetween, aes(x = Treatment, y = ifelse(Direction == "Up", Count, -Count), fill = Direction)) +
+b <- ggplot(df_longbetween, aes(x = Treatment, y = ifelse(Direction == "Up", Count, -Count), fill = Direction)) +
   geom_bar(stat = "identity", position = "stack", alpha = 0.65) +
   geom_text(aes(label = Count),
-            position = position_stack(vjust = 0.5),
-            fontface = "bold", size = 4.5
+    position = position_stack(vjust = 0.5),
+    fontface = "bold", size = 4.5
   ) +
   scale_fill_manual(values = c("Down" = "#408ea4", "Up" = "#c5242a")) +
-  #scale_x_discrete(limits = c("DBL21", "DBL19", "HA11","HA3", "ADMD17" , "WT13")) + # custom order
+  # scale_x_discrete(limits = c("DBL21", "DBL19", "HA11","HA3", "ADMD17" , "WT13")) + # custom order
   labs(
     title = "Upregulated and Downregulated DEGs for genotypic differences per Treatment and Day",
     x = "ZBF Line",
@@ -1556,5 +1992,61 @@ b=ggplot(df_longbetween, aes(x = Treatment, y = ifelse(Direction == "Up", Count,
 b
 
 library(gridExtra)
-combined <- grid.arrange(a,b,ncol=1)
+combined <- grid.arrange(a, b, ncol = 1)
 ggsave(combined, file = "vufun_DEGbarplotsboth.pdf", height = 25, width = 25, units = "cm")
+
+# random analysis ####
+# Mayhaps we do some upsets here? 
+# probably defunct Ok, now how abouts we do a bit of magic... #####
+resnormcounts <- read.csv(file = "vufun_norm_counts_results.csv")
+resnormcountslong <- pivot_longer(resnormcounts,
+  cols = -locusName,
+  names_to = "Sample",
+  values_to = "normcounts"
+)
+head(resnormcountslong$Sample)
+colnames(resnormcountslong)
+normcountsheaders <- colnames(resnormcounts[, -1])
+ZBFmetadata_counts <- data.frame(Sample = normcountsheaders, ZBFmetadata[, c(4, 5)])
+ZBFmetadata_counts <- left_join(resnormcountslong, ZBFmetadata_counts, by = "Sample")
+ZBFmetadata_counts$Identifying.Allele <- factor(ZBFmetadata_counts$Identifying.Allele, levels = c("DBL21", "DBL19", "HA11", "HA3", "ADMD17", "WT13", "WT15"))
+levels(ZBFmetadata_counts$Identifying.Allele)
+str(ZBFmetadata_counts)
+colnames(ZBFmetadata_counts)
+
+toplot <- ZBFmetadata_counts %>%
+  dplyr::filter(locusName %in% c("Vigun02g036100", "Vigun04g052000", "Vigun09g064700", "Vigun11g137500", "Vigun06g077700", "Vigun08g121300", "Vigun07g216700", "Vigun02g135200"))
+toplot$Rep <- rep(1:4, length.out = nrow(toplot))
+toplot$Rep <- factor(toplot$Rep)
+str(toplot)
+toplot <- left_join(toplot, RRgenes[, c("Gene Symbol", "locusName")], by = "locusName")
+
+counts <- ggplot(toplot, aes(x = Identifying.Allele, y = normcounts)) +
+  geom_boxplot(fill = NA, color = "gray90", alpha = 0.05, outlier.shape = NA) +
+  geom_point(aes(color = Rep)) +
+  # geom_bar(stat="")+
+  #  geom_text(aes(label=Rep))+
+  facet_wrap(~`Gene Symbol`, nrow = 2, scales = "free") +
+  labs(
+    title = "Normalized counts of select genes\nfor ZBF lines", y = "normalized counts", x = "ZBF line"
+  ) +
+  theme_bw() +
+  scale_color_manual(values = c("1" = "#4477AA", "2" = "#EE6677", "3" = "#228833", "4" = "#CCBB44")) +
+  theme(
+    axis.title.x = element_text(color = "black", size = 15, face = "bold"),
+    axis.title.y = element_text(color = "black", size = 15, face = "bold"),
+    axis.text.x = element_text(size = 15, angle = -40, hjust = 0, face = "bold"),
+    axis.text.y = element_text(size = 15, vjust = 0.5, face = "bold"),
+    strip.text.x = element_text(size = 15, face = "bold", margin = margin(0.1, 0, 0.1, 0, "cm")),
+    strip.background = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    theme(
+      legend.key.size = unit(15, "cm"), # change legend key size
+      legend.key.height = unit(15, "cm"), # change legend key height
+      legend.key.width = unit(15, "cm"), # change legend key width
+      legend.title = element_text(size = 14), # change legend title font size
+      legend.text = element_text(size = 10)
+    )
+  )
+counts
