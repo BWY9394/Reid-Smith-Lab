@@ -200,44 +200,36 @@ Which looks like below:
 #module load
 module load Salmon/1.4.0-GCC-11.2.0
 
-#Run salmon quant
+#Quantifying reads via Salmon
+# -- Configure these variables only ------------------------------------------
+SAMPLES_DIR="Raw/FUN_TC_Vu" #Won't work if you don't have the right directory
+SAMPLE_PATTERN="C{1..24}" #Won't work if your sample pattern is wrong
+SALMON_INDEX="salmon_indexVu" #Won't work if you don't call the same/exisiting indexed transcriptome+genome created before/relevant for your study
+OUTPUT_DIR="quantsC1_C24_NCBI" #Whatever you like
+SUMMARY_FILE="salmon_read_summary_C1_C24.tsv" #Whatever you like
+THREADS=8 #scale up if needed, e.g. to 12, but also scale up ram.
+# ----------------------------------------------------------------------------
 
-for fn in Raw/ZBF/ZBF{1..28}; do
+module load Salmon/1.4.0-GCC-11.2.0
+
+for fn in "${SAMPLES_DIR}"/${SAMPLE_PATTERN}; do
   samp=$(basename "${fn}")
   echo "Processing sample ${samp}"
-
-  # -l A: salmon auto-detects library type (stranded/unstranded)
-  # -1: forward reads
-  # -2: reverse reads (ignore if single-end)
-  # -p 8: use 8 CPU threads
-  # --validateMappings: selective alignment mode
-  # -o: output directory for quant results
-
-  salmon quant -i salmon_indexVu -l A \
+  salmon quant -i "${SALMON_INDEX}" -l A \
     -1 "${fn}/${samp}_1.fq.gz" \
     -2 "${fn}/${samp}_2.fq.gz" \
-    -p 8 --validateMappings -o "quantsZBF1_ZBF28/${samp}_quant"
+    -p "${THREADS}" --validateMappings -o "${OUTPUT_DIR}/${samp}_quant"
 done
 
+echo -e "Sample\tNumReads\tNumMapped\tPercentMapped" > "${OUTPUT_DIR}/${SUMMARY_FILE}"
 
-# Now make an output file
-echo -e "Sample\tNumReads\tNumMapped\tPercentMapped" > quantsZBF1_ZBF28/salmon_read_summary_ZBF1_ZBF28.tsv
-
-
-#Extract mapping stats out into tab-separated table 
-for d in quantsZBF1_ZBF28/*_quant; do
-   samp=$(basename "$d" _quant)
-   numReads=$(jq '.num_processed' "$d/aux_info/meta_info.json")
-   numMapped=$(jq '.num_mapped' "$d/aux_info/meta_info.json")
-   pctMapped=$(jq '.percent_mapped' "$d/aux_info/meta_info.json")
-
-   echo -e "${samp}\t${numReads}\t${numMapped}\t${pctMapped}" \
-     >> quantsZBF1_ZBF28/salmon_read_summary_ZBF1_ZBF28.tsv
+for d in "${OUTPUT_DIR}"/*_quant; do
+  samp=$(basename "$d" _quant)
+  numReads=$(jq  '.num_processed'   "$d/aux_info/meta_info.json")
+  numMapped=$(jq '.num_mapped'      "$d/aux_info/meta_info.json")
+  pctMapped=$(jq '.percent_mapped'  "$d/aux_info/meta_info.json")
+  echo -e "${samp}\t${numReads}\t${numMapped}\t${pctMapped}" >> "${OUTPUT_DIR}/${SUMMARY_FILE}"
 done
-
-
-# Optional: email summary to yourself
-mail -s "Salmon Quant Finished" -a quantsZBF1_ZBF2/salmon_read_summary_ZBF1_ZBF28.tsv BWeeYang@ltu.edu.au <<< "All samples finished. See attached summary."
 
 ```
 
