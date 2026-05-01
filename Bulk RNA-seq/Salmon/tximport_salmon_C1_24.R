@@ -786,6 +786,18 @@ SingleGenoSingleDay_plusN_merged_DEG
 RRgenes <- readxl::read_xlsx("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/Panfaba work/RobRoy_Vuadded.xlsx")
 colnames(RRgenes)
 RRgenes <- rename(RRgenes, "Vunguiculata" = "locusName")
+
+Enzymes <- readxl::read_xlsx("C:/Users/BWeeYang/OneDrive - LA TROBE UNIVERSITY/Desktop/Reid Lab/Enzyme Annotations/DeterminantNoduleEnzyme_KEGGInfo_CowpeaIDs_expanded_ExpData.xlsx", sheet = "Nodule enzymes + cowpea IDs")
+Enzymes <- Enzymes %>%
+  rename("Cowpea Vigun ID (Phytozome v1.2)" = "locusName") %>%
+  filter(!is.na(locusName)) %>%
+  dplyr::distinct(locusName, .keep_all = TRUE)
+colnames(Enzymes)
+Enzymes <- rename(Enzymes, "Cowpea Vigun ID (Phytozome v1.2)" = "locusName")
+Enzymes <- filter(Enzymes, !is.na(locusName))
+Enzymes <- dplyr::rename(Enzymes, "Cowpea Vigun ID (Phytozome v1.2)" = "locusName")
+
+
 # within genotype differences
 SingleGenoSingleDay_plusN_merged <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined.xlsx") # all genes
 SingleGenoSingleDay_plusN_merged_DEG <- readxl::read_xlsx(path = "lfc_pval_vufun_singleGeno_singleTP_plusN_combined_DEG.xlsx") # DEGs only
@@ -1151,7 +1163,7 @@ Heatmap(ST_SD_vufun2vsWT_rronly_no_NA_rr_lfc_mat,
 dev.off()
 
 
-##### Step 18: More heatmaps, but with ZBF for a consolidated heatmap. Analysis starting to getting messy #####
+##### Step 18: More heatmaps, but with ZBF for a consolidated heatmap. Also incnludes otherheatmaps without ZBF but with vufun TC exp for Enzyme annots Analysis starting to getting messy #####
 # Dataset with all ZBF mutants:
 getwd()
 ZBFbothrronly_DEG <- readxl::read_xlsx("P:/LAB - OPV - Dugald_Reid/Genomics/RNAseq datasets/220126 cowpea lotus faba Novogene/X201SC25100870-Z01-F001/03.Mapped/ZBF1_ZBF28_ZBF_2025/quantsZBF1_ZBF28/ZBF1315_onlyDEG.xlsx")
@@ -1168,8 +1180,20 @@ ZBF_vufunSG_vufunBG <- ZBFbothrronly_DEG %>%
   left_join(SingleGenoSingleDay_plusN_merged, by = "locusName") %>%
   left_join(SingleNSingleDay_vufunvsWT_merged, by = "locusName")
 
+# Dataset with all vufun TC for both with and between genotype differences
+
+ALLGENEMERGED <- readxl::read_xlsx(path = "BothComparisonsCombined.xlsx")
+
+ZBF_vufunSG_vufunBG_DEGEnzonly <- left_join(Enzymes[, c("Module/subsystem", "Enyzme", "locusName")],
+  ALLGENEMERGED,
+  by = "locusName"
+) # All Enzymes genes
+
+
+## Cleaning these datasets to get relevant comparisons for heatmap, i.e padj <0.05
 colnames(ZBF_vufunSG_vufunBG)
 
+# ZBF + vufun
 ZBF_vufunSG_vufunBG_DEG <- ZBF_vufunSG_vufunBG[, -c(1, 2)] %>%
   filter(padj_ADMD17_ref15 < 0.05 | padj_DBL19_ref15 < 0.05 | padj_DBL21_ref15 < 0.05 | padj_HA11_ref15 < 0.05 | padj_HA3_ref15 < 0.05 | padj_WT13_ref15 < 0.05 |
     padj_ADMD17_ref13 < 0.05 | padj_DBL19_ref13 < 0.05 | padj_DBL21_ref13 < 0.05 | padj_HA11_ref13 < 0.05 | padj_HA3_ref13 < 0.05 | padj_WT15_ref13 < 0.05 |
@@ -1180,6 +1204,19 @@ ZBF_vufunSG_vufunBG_DEG <- ZBF_vufunSG_vufunBG[, -c(1, 2)] %>%
 ZBF_vufunSG_vufunBG_DEG <- ZBF_vufunSG_vufunBG_DEG %>%
   filter(!if_all(starts_with("lfcs_"), is.na))
 
+# vufun only, ignore the ZBF prefix
+ZBF_vufunSG_vufunBG_DEGEnzonly_noNA <- ZBF_vufunSG_vufunBG_DEGEnzonly %>%
+  filter(!if_all(starts_with("lfcs_"), is.na)) # remove rows if NA in ALL LFCs-containg columns
+
+ZBF_vufunSG_vufunBG_DEGEnzonly_noNA_DEG <- ZBF_vufunSG_vufunBG_DEGEnzonly_noNA %>% filter(padj_D1_vufun_plusN < 0.05 | padj_D1_WT_plusN < 0.05 | padj_D3_vufun_plusN < 0.05 | padj_D3_WT_plusN < 0.05 |
+  padj_finresD1_minusN < 0.05 | padj_finresD1_plusN < 0.05 | padj_finresD3_minusN < 0.05 | padj_finresD3_plusN < 0.05)
+
+
+
+
+## Creating of annotation list.
+
+# ZBF + vufun
 ZBF_vufunSG_vufunBG_DEGrronly <- left_join(RRgenes[, c("Gene Symbol", "Function", "locusName")],
   ZBF_vufunSG_vufunBG_DEG,
   by = "locusName"
@@ -1188,7 +1225,20 @@ ZBF_vufunSG_vufunBG_DEGrronly <- left_join(RRgenes[, c("Gene Symbol", "Function"
 ZBF_vufunSG_vufunBG_DEGrronly_noNA <- ZBF_vufunSG_vufunBG_DEGrronly %>%
   filter(!if_all(starts_with("lfcs_"), is.na)) # remove rows if NA in ALL LFCs-containg columns
 
-# Make Groupings
+
+# vufun only, ignore the ZBF prefix
+ZBF_vufunSG_vufunBG_DEGEnzonly <- left_join(Enzymes[, c("Module/subsystem", "Enyzme", "locusName")],
+                                            ALLGENEMERGED,
+                                            by = "locusName"
+) # All Enzymes genes
+
+ZBF_vufunSG_vufunBG_DEGEnzonly_noNA <- ZBF_vufunSG_vufunBG_DEGEnzonly %>%
+  filter(!if_all(starts_with("lfcs_"), is.na)) # remove rows if NA in ALL LFCs-containg columns
+
+
+## Make Groupings and matrix
+
+# ZBF + vufun
 row_orderRRall <- data.frame(
   locusName = ZBF_vufunSG_vufunBG_DEGrronly_noNA$locusName,
   Grouping = ZBF_vufunSG_vufunBG_DEGrronly_noNA$Function,
@@ -1223,12 +1273,12 @@ all_padj_mat <- ZBF_vufunSG_vufunBG_DEGrronly_noNA %>%
 
 # colnames(padj_mat) <- sub("padj_", "", colnames(padj_mat))
 
-# Create empty character matrix
+# Create empty character matrix ZBF + vufun
 all_sig_mat <- matrix("", nrow = nrow(all_padj_mat), ncol = ncol(all_padj_mat))
 rownames(all_sig_mat) <- rownames(all_padj_mat)
 colnames(all_sig_mat) <- colnames(all_padj_mat)
 
-# Fill with significance levels
+# Fill with significance levels ZBF + vufun
 all_sig_mat[all_padj_mat < 0.05] <- "*"
 all_sig_mat[all_padj_mat < 0.01] <- "**"
 all_sig_mat[all_padj_mat < 0.001] <- "***"
@@ -1236,6 +1286,73 @@ all_sig_mat[all_padj_mat < 0.001] <- "***"
 colnames(ALLrr_lfc_mat)
 col_order <- colnames(ALLrr_lfc_mat)
 column_split_factor <- factor(col_order, levels = col_order)
+
+## Make Groupings and matrix
+# vufun only, ignore the ZBF prefix
+
+row_orderEnzall <- data.frame(
+  locusName = ZBF_vufunSG_vufunBG_DEGEnzonly_noNA$locusName,
+  Grouping = ZBF_vufunSG_vufunBG_DEGEnzonly_noNA$`Module/subsystem`,
+  Enzyme = ZBF_vufunSG_vufunBG_DEGEnzonly_noNA$Enyzme
+)
+
+row_orderEnzall$Grouping <- as.factor(row_orderEnzall$Grouping)
+levels(row_orderEnzall$Grouping)
+
+row_orderEnzall$Grouping <- factor(row_orderEnzall$Grouping,
+                                   levels = c(
+                                     "Glycolysis",
+                                     "Pentose phosphate pathway",
+                                     "TCA cycle",
+                                     "Glyoxylate shunt",
+                                     "GS/GOGAT",
+                                     "De novo purine synthesis",
+                                     "Allantoin synthesis",
+                                     "Aspartate metabolism",
+                                     "Alanine metabolism",
+                                     "Glycine and serine metabolism"
+                                   )
+)
+
+
+ALLEnz_lfc_mat <- ZBF_vufunSG_vufunBG_DEGEnzonly_noNA %>%
+  select(locusName, starts_with("lfcs_")) %>%
+  column_to_rownames("locusName") %>%
+  as.matrix()
+
+all_padj_mat <- ZBF_vufunSG_vufunBG_DEGEnzonly_noNA %>%
+  select(locusName, starts_with("padj_")) %>%
+  column_to_rownames("locusName") %>%
+  as.matrix()
+
+all_sig_mat <- matrix("", nrow = nrow(all_padj_mat), ncol = ncol(all_padj_mat))
+rownames(all_sig_mat) <- rownames(all_padj_mat)
+colnames(all_sig_mat) <- colnames(all_padj_mat)
+
+# Fill with significance levels vufun only, ignore the ZBF prefix
+all_sig_mat[all_padj_mat < 0.05] <- "*"
+all_sig_mat[all_padj_mat < 0.01] <- "**"
+all_sig_mat[all_padj_mat < 0.001] <- "***"
+
+colnames(ALLEnz_lfc_mat)
+col_order <- colnames(ALLEnz_lfc_mat)
+column_split_factor <- factor(col_order, levels = col_order)
+
+
+
+
+
+
+
+## Heatmaps
+# ZBF + vufun
+
+colfun <- colorRamp2(
+  c(-4, -1, 0, 1, 4),
+  c("#313695", "#74ADD1", "#F7F7F7", "#FDAE61", "#A50026")
+)
+
+
 dev.off()
 pdf("ZBF_vufunall_genesym.pdf", height = 24, width = 12)
 Heatmap(ALLrr_lfc_mat,
@@ -1289,6 +1406,125 @@ Heatmap(ALLrr_lfc_mat,
 dev.off()
 
 
+# vufun only, ignore the ZBF prefix
+
+Heatmap(ALLEnz_lfc_mat,
+        col = colfun,
+        use_raster = TRUE,
+        cluster_columns = FALSE,
+        cluster_rows = TRUE,
+        row_labels = row_orderEnzall$Enzyme,
+        # Show row names (from the matrix) on the right
+        show_row_names = TRUE,
+        row_names_side = "right",
+        # put them on the right
+        cluster_row_slices = FALSE, # IMPORTANT TO HAVE IT ON IF YOU WANT TO REODER PER YOUR LIST.
+        # cluster_rows=TRUE,
+        # clustering_method_columns="ward.D",
+        # clustering_method_rows = "ward.D",
+        row_dend_reorder = FALSE, # turned off because cant see difference due to magnitude of genes (5000+)
+        row_split = factor(row_orderEnzall$Grouping),
+        row_gap = unit(2, "mm"),
+        cell_fun = function(j, i, x, y, width, height, fill) {
+          if (all_sig_mat[i, j] != "") {
+            grid.text(
+              all_sig_mat[i, j],
+              x, y,
+              gp = gpar(fontsize = 6, col = "red")
+            )
+          }
+        },
+        # row_km = 12,
+        # column_km=9,
+        # column_km_repeats=100,
+        # row_km_repeats = 100,#divide into clusters by kmeans, repeat 100 use consensus
+        row_title_gp = gpar(font = 2, fontsize = 6),
+        row_title_rot = 0,
+        row_names_gp = gpar(fontsize = 6),
+        cluster_column_slices = FALSE,
+        column_split = column_split_factor,
+        # column_split = column_split_factorall, # <- visually separates minusP vs plusP
+        column_gap = unit(2, "mm"),
+        column_title = "ZBF +vuFUN TC",
+        # column_title_side = "bottom",
+        column_title_gp = gpar(fontsize = 15, fontface = "bold"),
+        heatmap_legend_param = list(
+          title = "shrunklog2FC",
+          title_gp = gpar(fontsize = 10, fontface = "bold"),
+          labels_gp = gpar(fontsize = 8),
+          at = seq(-4, 4, by = 2), # where to pick the ticks at, by denotes max
+          labels = seq(-4, 4, by = 2) # what to print next to these ticke
+        )
+)
+dev.off()
+
+
+
+pdf("EnzymeHeatmap/vufuntimecourse_enzymeannot_enzymenames",height= 15)
+
+ht <- Heatmap(
+  ALLEnz_lfc_mat,
+  name = "shrunk\nlog2FC",
+  col = colfun,
+  use_raster = TRUE,
+  
+  cluster_columns = FALSE,
+  cluster_rows = TRUE,
+  row_dend_reorder = FALSE,
+  
+  row_labels = row_orderEnzall$Enzyme,
+  show_row_names = TRUE,
+  row_names_side = "right",
+  row_names_gp = gpar(fontsize = 5),
+  
+  row_split = factor(row_orderEnzall$Grouping),
+  cluster_row_slices = FALSE,
+  row_gap = unit(1.5, "mm"),
+  row_title_gp = gpar(fontface = "bold", fontsize = 7),
+  row_title_rot = 0,
+  
+  column_split = column_split_factor,
+  cluster_column_slices = FALSE,
+  column_gap = unit(2, "mm"),
+  
+  column_title = "ZBF + vuFUN TC",
+  column_title_gp = gpar(fontsize = 14, fontface = "bold"),
+  
+  show_column_names = TRUE,
+  column_names_gp = gpar(fontsize = 7),
+  column_names_rot = 45,
+  
+  border = TRUE,
+  rect_gp = gpar(col = NA),
+  
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    if (all_sig_mat[i, j] != "") {
+      grid.text(
+        all_sig_mat[i, j],
+        x, y,
+        gp = gpar(fontsize = 5, col = "black", fontface = "bold")
+      )
+    }
+  },
+  
+  heatmap_legend_param = list(
+    title = "shrunk log2FC",
+    title_gp = gpar(fontsize = 9, fontface = "bold"),
+    labels_gp = gpar(fontsize = 8),
+    at = seq(-4, 4, by = 2),
+    labels = seq(-4, 4, by = 2),
+    legend_height = unit(35, "mm")
+  )
+)
+
+draw(
+  ht,
+  heatmap_legend_side = "right",
+  padding = unit(c(5, 5, 5, 5), "mm")
+)
+
+dev.off()
+
 ##### Step 19?: Now what if we want to look at contrasting comparisons eh? e.g. contrasting expresssion ####
 # More comparisons
 
@@ -1310,11 +1546,11 @@ vufun2_vs_WT_plusN_D3_DEG <- ALLGENEMERGED %>%
 str(vufun2_vs_WT_plusN_D3_DEG)
 
 vufun2_vs_WT_plusN_D1_DEG <- ALLGENEMERGED %>%
-  filter(padj_finresD1_plusN < 0.05 & !is.na(padj_finresD3_plusN))# has to be DEG at D1, plus N for vufun vs WT #1,486
+  filter(padj_finresD1_plusN < 0.05 & !is.na(padj_finresD3_plusN)) # has to be DEG at D1, plus N for vufun vs WT #1,486
 str(vufun2_vs_WT_plusN_D1_DEG)
 
 vufun2_vs_WT_plusN_D1and_D3_DEG <- ALLGENEMERGED %>%
-  filter(padj_finresD1_plusN < 0.05 & padj_finresD3_plusN) # has to be DEG at D1, plus N for vufun vs WT #223 
+  filter(padj_finresD1_plusN < 0.05 & padj_finresD3_plusN) # has to be DEG at D1, plus N for vufun vs WT #223
 str(vufun2_vs_WT_plusN_D1and_D3_DEG)
 head(vufun2_vs_WT_plusN_D1and_D3_DEG$padj_finresD3_plusN, n = 500)
 
@@ -1435,7 +1671,6 @@ ht <- Heatmap(ST_SD_vufun2vsWT_merged_DEG_mat_D1_unique,
 set.seed(123) # NEED to set it right before generating the HM=draw(ht) step in order to get some clusters
 HM <- draw(ht)
 dev.off()
-
 # extract clusters
 library(magrittr)
 r.dend <- row_dend(HM) # If needed, extract row dendrogram
@@ -1667,192 +1902,10 @@ sum(!is.na(Supertable$Cluster))
 
 
 Inspection <- Supertable %>%
-  select(locusName, Cluster,vufun_vs_WT_DEG ) %>%
+  select(locusName, Cluster, vufun_vs_WT_DEG) %>%
   filter(!is.na(Cluster))
 View(Inspection)
 writexl::write_xlsx(Supertable, path = "Database_ver3.xlsx")
-
-# Step 20: GO term analysis ####
-# Prefill from other projects, but concept is the same. Will update later when I actually fun the analysis.
-#ok, now ready for GO terms.
-library(clusterProfiler)
-
-#build the c#build the c#build the comparison
-all_GO_comp <- compareCluster(geneCluster = clu_list,
-                              
-                              fun = "enrichGO",
-                              
-                              OrgDb = "org.Csativa.eg.db",
-                              
-                              ont="BP",
-                              
-                              pAdjustMethod = 'fdr',
-                              
-                              keyType = 'GID', # this was used when creating org.Csativa.eg.db
-                              
-                              qvalueCutoff  = 0.01,
-                              
-                              minGSSize = 10 # min gene number per GO term, will determine which modules might fall out, soemthing to play with
-                              
-)
-
-
-# problem is that the qvalues dont scale nicely in the dotplot, so first
-
-# use cutoff, e.g. logcut =10 and generate the -logs
-
-
-logcut = 20
-
-  
-
-logs = as.data.frame(all_GO_comp@compareClusterResult$qvalue)
-
-colnames(logs) = 'qvalue'
-
-
-
-logs = logs %>%
-  
-  mutate(nlogq = case_when(
-    
-    -log(qvalue) > logcut ~ logcut, # everything above cutoff
-    
-    -log(qvalue) <= logcut ~ -log(qvalue)))
-
-#now add those logs back to object to use.
-all_GO_comp@compareClusterResult$nlogq = logs$nlogq
-
-options(enrichplot.colours = c("#408ea4","#c5242a"))
-
-dotplot(all_GO_comp,
-        
-        showCategory=20, # top20 for every module
-        
-        color='nlogq',
-        includeAll=TRUE, # this is important to keep the ones that are overlapping
-        
-        font.size =  10,
-        
-        x = 'Cluster',
-        title='All Go Modules') +
-  
-  scale_color_viridis_c(option = "viridis",direction=-1)
-
-dev.off()
-ggsave('all_GO_modules_top20.pdf', width = 25, height = 25, unit = 'cm')
-
-
-all_GO_summary = as.data.frame(all_GO_comp)
-
-write.csv(all_GO_summary, 'all_GO_summary.csv')
-
-view(clu_df2)
-dev.off()
-
-# first need to prepare a GoSemSim object first:
-GOdata = godata(
-  
-  OrgDb = "org.Csativa.eg.db",
-  
-  keytype = "GID",
-  
-  ont = 'BP',
-  
-  computeIC = TRUE,
-  
-  processTCSS = TRUE,
-  
-  cutoff = NULL
-  
-)
-
-# now use the above to simplify
-
-# need to specify clusterProfiler::simplify because of some other function with the same name :(
-
-# without semData = GOdata it only works using measure = 'Wang' and semdata = NULL
-
-
-all_GO_comp_simple = clusterProfiler::simplify(
-
-  all_GO_comp,
-
-  cutoff = 0.7, # lower number = fewer GOs
-
-  by = "qvalue",
-
-  select_fun = min,
-
-  measure = "Rel",
-
-  semData = GOdata)
-
-
-
-dotplot(all_GO_comp_simple,
-        
-        showCategory=10, # top10 for every module
-        
-        includeAll=TRUE, # this is important to keep the ones that are overlapping
-        
-        color="nlogq",
-        
-        font.size = 14,
-        
-        x = 'Cluster',
-        title= 'Simplified') +
-  
-  #scale_color_viridis_c(option = "cividis")+
-  
-  #scale_color_viridis_c(option = "inferno")
-  
-  scale_color_viridis_c(option = "viridis")
-
-
-ggsave('Simplified_GO.pdf', width = 35, height = 35, unit = 'cm')
-
-all_GO_comp_simple_drop = dropGO(all_GO_comp_simple, level = c(1,2,3))
-
-
-dotplot(all_GO_comp_simple_drop,
-        
-        showCategory=20, # top20 for every module
-        
-        includeAll=TRUE, # this is important to keep the ones that are overlapping
-        
-        color='nlogq',
-        
-        font.size = 5,
-        
-        x = 'Cluster',
-        title= 'Simplified and dropping high level GO terms') +
-  
-  scale_color_viridis_c(option = "viridis")
-
-ggsave('Simpliedanddroppinghighlevels_GO.pdf', width = 25, height = 35, unit = 'cm')
-
-write.csv(all_GO_comp_simple_drop, 'all_GO_comp_simple_drop.csv')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ##### This bit is for DEG barplots #####
 # Great now, lets do some general stats
@@ -1995,9 +2048,10 @@ library(gridExtra)
 combined <- grid.arrange(a, b, ncol = 1)
 ggsave(combined, file = "vufun_DEGbarplotsboth.pdf", height = 25, width = 25, units = "cm")
 
-# random analysis ####
-# Mayhaps we do some upsets here? 
-# probably defunct Ok, now how abouts we do a bit of magic... #####
+
+##### Mayhaps we do some upsets here? #####
+#####
+##### probably defunct Ok, now how abouts we do a bit of magic... #####
 resnormcounts <- read.csv(file = "vufun_norm_counts_results.csv")
 resnormcountslong <- pivot_longer(resnormcounts,
   cols = -locusName,
