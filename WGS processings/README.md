@@ -101,7 +101,9 @@ Once familiar, switch over to either the BBduk_batch.sh or BBduk_sep_fold.sh scr
 No need to edit files names as it just scans the folder containing your raw reads.
 
 ## Running T-LOC
-What is T-LOC
+What is T-LOC?
+Link: https://github.com/sfli001/T-LOC
+Paper: 
 
 ## Running TDNA-scan
 What is TDNA-scan
