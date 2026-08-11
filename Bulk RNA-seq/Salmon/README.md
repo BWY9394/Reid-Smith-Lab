@@ -155,11 +155,47 @@ zcat ./Genomics/Vunguiculata_540_v1.2.transcript.fa.gz | head -n 5
 
 ---
 
+Built correctly, your salmon index will look like:
+```bash
+salmon_indexVu
+├── complete_ref_lens.bin
+├── ctable.bin
+├── ctg_offsets.bin
+├── duplicate_clusters.tsv
+├── info.json
+├── mphf.bin
+├── pos.bin
+├── pre_indexing.log
+├── rank.bin
+├── refAccumLengths.bin
+├── ref_indexing.log
+├── reflengths.bin
+├── refseq.bin
+├── seq.bin
+└── versionInfo.json
+```
+
 ## Notes
 
 * Full transcripts with UTRs improve isoform quantification and mapping accuracy.
 * Decoy-aware indexing reduces false-positive mapping to transcripts.
 * Indexing can take a few minutes to hours depending on genome size and HPC resources.
+  *For example, cowpea with its 0.613Gb genome takes just a couple of minutes.
+  * Faba on the other hand, with its 13Gb genome, took 1.5h
+
+```bash
+Job ID: 419228
+Cluster: ltu-hpc
+User/Group: bweeyang/domain users
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 8
+CPU Utilized: 07:24:52
+CPU Efficiency: 48.52% of 15:16:56 core-walltime
+Job Wall-clock time: 01:54:37
+Memory Utilized: 87.07 GB
+Memory Efficiency: 68.02% of 128.00 GB (128.00 GB/node)
+```
 * Why do we create an index?
   * Creating an index for a computer database (which is basically what any reference genome/transcriptome is), allows for quick access to any "record" (gene+gene metadata), given a short "key" (usually ID of splice variant/isoform for a specific gene locus).
   * In other words, creating an index for a reference sequence allows it to more rapidly place a read on that sequence at a location where it knows at least a piece of the read matches perfectly or with only a few mismatches.
