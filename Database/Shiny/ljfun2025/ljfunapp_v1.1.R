@@ -7,7 +7,7 @@ library(DT)
 library(sortable)
 
 ui <- fluidPage(
-  titlePanel("LjFUN RNA-seq browser"),
+  titlePanel("ljfun RNA-seq browser"),
   
   sidebarLayout(
     sidebarPanel(
@@ -46,6 +46,10 @@ ui <- fluidPage(
       ),
       uiOutput("plot_ui"),
       uiOutput("plot_info"),
+      hr(),
+      h3("Selected gene boxplots"),
+      uiOutput("gene_boxplot_selector"),
+      uiOutput("gene_boxplot_ui"),
       selectInput("download_format", "Download format:",
                   choices = c("PNG", "PDF", "SVG"), selected = "PNG"),
       h5("Download dimensions (inches)"),
@@ -69,11 +73,12 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  con <- dbConnect(SQLite(), "rnaseq_lj_test.sqlite")
+  con <- dbConnect(SQLite(), "rnaseq_lj_test_copy.sqlite")
   onStop(function() dbDisconnect(con))
   
   metadata_tbl <- dbReadTable(con, "lotusmetadata")
   counts_tbl   <- dbReadTable(con, "ljnormcounts")
+  atlast_tbl  <- dbReadTable(con, "gifuatlas")
   
   default_cols <- c(
     "locusName",
@@ -162,6 +167,19 @@ server <- function(input, output, session) {
     selected_loci()
   })
   
+  boxplot_genes <- reactive({
+    sel <- selected_genes()
+    if (length(sel) == 0) {
+      return(character(0))
+    }
+    
+    if (!is.null(input$boxplot_gene_selection) && length(input$boxplot_gene_selection) > 0) {
+      intersect(sel, input$boxplot_gene_selection)
+    } else {
+      character(0)
+    }
+  })
+  
   ordered_selected_genes <- reactive({
     sel <- selected_genes()
     pasted <- unique(pasted_loci())
@@ -225,6 +243,57 @@ server <- function(input, output, session) {
     )
   })
   
+  output$gene_boxplot_selector <- renderUI({
+    sel <- selected_genes()
+    if (length(sel) == 0) {
+      return(NULL)
+    }
+    
+    checkboxGroupInput(
+      inputId = "boxplot_gene_selection",
+      label = "Choose genes to plot",
+      choices = sel,
+      selected = sel
+    )
+  })
+  
+  output$gene_boxplot_ui <- renderUI({
+    plotOutput("gene_boxplot", height = "500px", width = "1500px")
+  })
+  
+  output$gene_boxplot <- renderPlot({
+    plot_genes <- boxplot_genes()
+    
+    if (length(plot_genes) == 0) {
+      plot.new()
+      text(0.5, 0.5, "Select one or more genes from the metadata table", cex = 1.2)
+      return()
+    }
+    
+    filtergenes <- atlast_tbl %>%
+      filter(locusName %in% plot_genes)
+    
+    if (nrow(filtergenes) == 0) {
+      plot.new()
+      text(0.5, 0.5, "No data found for the plotted genes", cex = 1.2)
+      return()
+    }
+    
+    filtergenes <- filtergenes %>%
+        mutate(
+          Condition = factor(Condition, levels = unique(Condition)),
+          locusName = factor(locusName, levels = plot_genes)
+        )
+    
+    ggplot(filtergenes, aes(x = count, y = Condition, color = locusName)) +
+      geom_boxplot() +
+      theme_bw() +
+      theme(axis.text.y = element_text(size = 10),
+            legend.position = "top",
+            legend.justification = "left") +
+      labs(title = "Gene atlas", x = "Count", y = "Sample")
+  })
+  
   output$counts_plot <- renderPlot({
     
     if (length(selected_genes()) == 0) {
@@ -279,7 +348,7 @@ server <- function(input, output, session) {
         size = 0.4,
         linetype = "solid"
       )
-      
+    
     
     print(plot_obj)
   })
