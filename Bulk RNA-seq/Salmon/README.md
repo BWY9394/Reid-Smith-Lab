@@ -181,7 +181,7 @@ salmon_indexVu
 * Decoy-aware indexing reduces false-positive mapping to transcripts.
 * Indexing can take a few minutes to hours depending on genome size and HPC resources.
   *For example, cowpea with its 0.613Gb genome takes just a couple of minutes.
-  * Faba on the other hand, with its 13Gb genome, took 1.5h
+  * Faba on the other hand, with its 13Gb genome, took 2h
 
 ```bash
 Job ID: 419228
