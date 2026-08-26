@@ -31,7 +31,26 @@ What it requires:
 
 It is often the case that you will need to generate a fasta file containing just the primary transcript of each protein. In this case(and most), we define this as the longest representative transcript.
 
-To do this we run:
+Here is what an example subset of what each proteome fasta will contain:
+```
+>ENSTRUG00000020328.1
+YGFDYWGKGTTVTVSSGM
+>ENSTRUG00000023840.1
+AQTLTQSEPVVKRPGESHTLTCSASGFTFSSYGMAWVRQAPGKGLEWIAYIYSSTYYSES
+VKGRFIISRDNNRAQLNLQMNSLKTEDSAVYYCARWSQ
+>ENSTRUG00000023903.1
+PVVKRPGESHTLTCSASGFTFSSYGMAWVRQAPGKGLEWISAISSGSSYKYYSESVKGRF
+IISRDNNKAQLNLQMNSLKTEDSAVYYCARESQ
+>ENSTRUG00000023571.1
+PVVKRPGESHTLTCSASGFTFSSYWMHWVRQAPGKGLEWISAIGTDSSTYYSESVKGRFI
+ISRDNNRAQLNLQMNSLKTEDSAVYYCARESQ
+>ENSTRUG00000023222.1
+AQTLTQSEPVVKRPGESHTLTCSASGFTFSSYRMNWVRQAPGKGLEWIAFISNYGGSIQY
+YSESVKGRFIISRDDNKAQLNLQMNSLKTEDSAVYYCARNAQ
+```
+
+
+To do this we run the following command in the same folder where you have placed your proteomes:
 ```bash
 for f in *fa ; do python ~/orthofinder_tutorial/OrthoFinder/tools/primary_transcript.py $f ; done
 ```
