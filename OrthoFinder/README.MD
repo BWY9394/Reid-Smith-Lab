@@ -144,3 +144,10 @@ your_working_directory/
     ├── Log.txt
     └── Citation.txt
 ```
+
+The orthogroup file we use for downstream applications to other analysis is in:
+Orthogroups/Orthogroups.tsv
+
+What is useful is also the fasta file that is generated for each orthogroup which contains the sequences for the genes in that orthogroup in:
+Orthogroup_Sequences/ 
+
