@@ -17,3 +17,8 @@ Adapted for LTU systems and Reid lab infrastructure
 \*\* Would recommend this option if you are running a huge number of species and/or the species have very large genomes e.g. Faba which has a genome of 13Gb.
 
 ### 1. (Skip to Step 2 if picking option 1 or 2)
+
+
+### 2. Running an analysis
+
+OrthoFinder uses the high-performance protein sequence aligner DIAMOND by default to perform all-versus-all sequence similarity searches, providing a much faster alternative to BLAST for large-scale phylogenomic analyses. These sequence similarity results are used to infer orthogroups, which are groups of genes descended from a single ancestral gene in the last common ancestor of the species being compared. OrthoFinder subsequently uses phylogenetic analysis to infer orthologous and paralogous relationships within these groups.
