@@ -8,7 +8,7 @@ Adapted for LTU systems and Reid lab infrastructure
 
 2 options: 
 1) Run on HPC **
-2) Run on Reid lab HPC
+2) Run on Reid lab HPC *
 3) Run on your own computer *
 
 \* For Linux: follow the instructions below.  
