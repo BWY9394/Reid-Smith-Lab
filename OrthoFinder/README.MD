@@ -19,6 +19,7 @@ You will also need python.
 
 ### 1. Setting it up(Skip to Step 2 if picking option 1 or 2) ###
 
+TBC ( or just follow here https://davidemms.github.io/orthofinder_tutorials/downloading-and-running-orthofinder.html)
 
 ### 2. Running an analysis
 
@@ -47,6 +48,13 @@ ISRDNNRAQLNLQMNSLKTEDSAVYYCARESQ
 AQTLTQSEPVVKRPGESHTLTCSASGFTFSSYRMNWVRQAPGKGLEWIAFISNYGGSIQY
 YSESVKGRFIISRDDNKAQLNLQMNSLKTEDSAVYYCARNAQ
 ```
+To do this we run the following command in the same folder where you have placed your proteomes:
+```bash
+for f in *fa ; do python ~/orthofinder_tutorial/OrthoFinder/tools/primary_transcript.py $f ; done
+```
+This command processes every .fa file in the current directory and runs OrthoFinder's primary_transcript.py script on each one.
+Syntax:
+for f in *fa — finds files in the current directory whose names end in fa and assigns each filename to the variable f, one at a time.
 
 To check multiple fastas at once, run the following in the same folder where you have placed your proteomes:
 ```bash
@@ -56,15 +64,7 @@ for f in *.fa; do
     echo
 done
 ```
-
-To do this we run the following command in the same folder where you have placed your proteomes:
-```bash
-for f in *fa ; do python ~/orthofinder_tutorial/OrthoFinder/tools/primary_transcript.py $f ; done
-```
-This command processes every .fa file in the current directory and runs OrthoFinder's primary_transcript.py script on each one.
-Syntax:
-for f in *fa — finds files in the current directory whose names end in fa and assigns each filename to the variable f, one at a time.
-
+But of course make sure you
 
 The output is saved in a new primary_transcripts/ folder inside the same directory as each input FASTA file. The OrthoFinder script explicitly creates that folder automatically.
 ```
