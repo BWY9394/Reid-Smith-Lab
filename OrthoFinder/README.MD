@@ -16,7 +16,7 @@ Adapted for LTU systems and Reid lab infrastructure
 \* For Windows it is best to install the Windows Subsystem for Linux and then continue as for Linux below.  
 \*\* Would recommend this option if you are running a huge number of species and/or the species have very large genomes e.g. Faba which has a genome of 13Gb. Also if you don't want to muck around too much with with installing python + cloning the OrthoFinder git repo 
 
-### 1. Setting it up (Skip to Step 2 if picking option 1, Step 2-alternate if running from Reid lab HPC) ###
+### 1. Setting it up (Skip to Step 2 if picking option 1, Step 2-alternate if running from Reid lab HPC or your own computer) ###
 
 TBC ( or just follow here https://davidemms.github.io/orthofinder_tutorials/downloading-and-running-orthofinder.html)
 
