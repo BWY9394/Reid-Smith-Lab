@@ -201,8 +201,14 @@ Memory Efficiency: 68.02% of 128.00 GB (128.00 GB/node)
   * In other words, creating an index for a reference sequence allows it to more rapidly place a read on that sequence at a location where it knows at least a piece of the read matches perfectly or with only a few mismatches.
   * By jumping right to these spots in the genome, rather than trying to fully align the read to every place in the genome, it saves a ton of time.
   * Also, once you index once, you shouldn't need to index it again for other mapping runs for the same species with the same pipeline.
-* For large genomes i.e. Faba which has 13Gbp, you will need to up the memory. Cowpea, which has only 0.613Gbp...
-
+* For large genomes i.e. Faba which has 13Gb, you will need to up the memory. Cowpea, which has only 0.613Gbp...
+* If you have a very large genome, i.e. like in Faba which has 13Gb, run the indexing as a shell (.sh script).
+```bash
+cd ./whereyourfilesare
+#In my case it is cd ./Salmon/Salmon/ , and it contains a subfolder called Genomics which houses my reference genome and transcriptome. Here is also where my output will be saved from both indexing (and later mapping)
+#I then run my bash script for the entire indexing process, the advantage which is I can easily allocate more threads(cores) + memory(ram)
+sbatch ./whereveryouhavestoredyourscript/salmon_indexVf.sh
+```
 ---
 
 ## Salmon Quantification

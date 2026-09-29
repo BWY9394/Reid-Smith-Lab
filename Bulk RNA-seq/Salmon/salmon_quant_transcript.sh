@@ -1,12 +1,13 @@
 #!/bin/bash
-#SBATCH --time=20:00:00
+#SBATCH --time=5-00:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --job-name="C1_24NCBI"
-#SBATCH --partition=day
+#SBATCH --mem=128G
+#SBATCH --job-name="F1_F12_AMB"
+#SBATCH --partition=week
+# send-to address
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=BWeeYang@ltu.edu.au # send-to address
+#SBATCH --mail-user=BWeeYang@ltu.edu.au 
 
 #Available salmon versions
 #Salmon/1.4.0-GCC-11.2.0
@@ -18,23 +19,30 @@ module load Salmon/1.4.0-GCC-11.2.0
 
 #Quantifying reads via Salmon
 # -- Configure these variables only ------------------------------------------
-SAMPLES_DIR="Raw/FUN_TC_Vu" #Won't work if you don't have the right directory
-SAMPLE_PATTERN="C{1..24}"  #Won't work if your sample pattern is wrong
-SALMON_INDEX="salmon_indexVuNCBI" #Won't work if you don't call the same/exisiting indexed transcriptome+genome created before/relevant for your study
-OUTPUT_DIR="quantsC1_C24_NCBI"  #Whatever you like
-SUMMARY_FILE="salmon_read_summary_C1_C24_NCBI.tsv" #Whatever you like
+SAMPLES_DIR="Raw/FABA2025" #Won't work if you don't have the right directory
+#SAMPLE_PATTERN="F{1..12}"  #Won't work if your sample pattern is wrong
+SAMPLES=(F{1..12})
+SALMON_INDEX="salmon_indexVf_Amberly" #Won't work if you don't call the same/exisiting indexed transcriptome+genome created before/relevant for your study
+OUTPUT_DIR="quantsF1_F12_AMBERLY"  #Whatever you like
+SUMMARY_FILE="salmon_read_summary_F1_F12_AMBERLY.tsv" #Whatever you like
 THREADS=8 #scale up if needed, e.g. to 12, but also scale up ram.
 # ----------------------------------------------------------------------------
 
 module load Salmon/1.4.0-GCC-11.2.0
 
-for fn in "${SAMPLES_DIR}"/${SAMPLE_PATTERN}; do
-  samp=$(basename "${fn}")
-  echo "Processing sample ${samp}"
-  salmon quant -i "${SALMON_INDEX}" -l A \
+SAMPLES=(F{1..12})
+
+for samp in "${SAMPLES[@]}"; do
+  fn="${SAMPLES_DIR}/${samp}"
+
+  salmon quant \
+    -i "${SALMON_INDEX}" \
+    -l A \
     -1 "${fn}/${samp}_1.fq.gz" \
     -2 "${fn}/${samp}_2.fq.gz" \
-    -p "${THREADS}" --validateMappings -o "${OUTPUT_DIR}/${samp}_quant"
+    -p "${THREADS}" \
+    --validateMappings \
+    -o "${OUTPUT_DIR}/${samp}_quant"
 done
 
 echo -e "Sample\tNumReads\tNumMapped\tPercentMapped" > "${OUTPUT_DIR}/${SUMMARY_FILE}"
