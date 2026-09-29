@@ -81,7 +81,8 @@ The output is saved in a new primary_transcripts/ folder inside the same directo
 Fantastic. Now we run the analysis with:
 
 ```bash
-orthofinder -f primary_transcripts/
+./orthofinder -f primary_transcripts/
+ ./orthofinder -f ExampleData/
 ```
 
 And that's it!
