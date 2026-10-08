@@ -82,7 +82,7 @@ gffread     Genomics/Vunguiculata_540_v1.2.gene_exons.gff3     --bed     -o Geno
 head Genomics/Vunguiculata_540_v1.2.RSeQC.bed | column -t
 
 # the above produced 13 columns for me as I have some thing like
-# 13 contig_106      11433   11965   VigunL059001.1.v1.2     100     +       11548   11965   0,0,0   1       532,   0,       CDS=11548:11965;CDSphase=0;geneID=VigunL059001.v1.2
+# contig_106      11433   11965   VigunL059001.1.v1.2     100     +       11548   11965   0,0,0   1       532,   0,       CDS=11548:11965;CDSphase=0;geneID=VigunL059001.v1.2
 # the 13th column is from phytozome gff3, not necessary. 
 # so we remove with
 awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}'     Genomics/Vunguiculata_540_v1.2.RSeQC.bed     > Genomics/Vunguiculata_540_v1.2.RSeQC.BED12.bed
