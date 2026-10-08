@@ -70,7 +70,7 @@ module purge
 
 Next, we convert the GFF3 annotation to a BED12 transcript annotation, which is the format required by the RSeQC tools we're using.
 
-This step is best done on a linux machine, the HPC doesn't have the necssary tools (that I know off) to do this. This facilitated (for me) via WSL2(https://learn.microsoft.com/en-us/windows/wsl/install).
+This step is best done on a linux machine, the HPC doesn't have the necssary tools (that I know off) to do this. This facilitated (for me) via [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install).
 
 We will require gffread.
 
