@@ -6,10 +6,12 @@ First we index our genome with
 1. Genome
 2. gtf/gff3 file
 
-and we then also align in the same script with the produced 
+and we then also align in the same script with the produced
+
 3. STAR_INDEX
 
 and your raw reads  
+
 4. Paired raw reads
 
 
