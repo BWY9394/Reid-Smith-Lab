@@ -9,7 +9,7 @@ First we index our genome with
 and we then also align in the same script with the produced 
 3. STAR_INDEX
 
-and your raw reads
+and your raw reads  
 4. Paired raw reads
 
 
