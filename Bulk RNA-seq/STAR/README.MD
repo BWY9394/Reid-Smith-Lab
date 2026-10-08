@@ -57,12 +57,13 @@ echo "finished elignment"
 
 
 
-This will give a bunch of stuff, but most importantly the This will produce your bam file e.g. STAR_test_Aligned.sortedByCoord.out.bam
+This will give a bunch of stuff, but most importantly will produce your bam file e.g. STAR_test_Aligned.sortedByCoord.out.bam
 
-Index it with (run directly in HPC terminal)
+Index it with (run directly in HPC terminal line by line)
 ```bash
 module load SAMtools/1.16.1-GCC-11.3.0
 samtools index /where/your/bam/file/is/STAR_test_Aligned.sortedByCoord.out.bam
+module purge
 ```
 
 Next, we convert the GFF3 annotation to a BED12 transcript annotation, which is the format required by the RSeQC tools we're using.
