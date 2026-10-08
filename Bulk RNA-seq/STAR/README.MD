@@ -1,5 +1,5 @@
 ### Walkthrough for STAR to QC RNA-seq reads 
-#### Disclaimer: I wrote this in 20 minutes so still needs some cleaning up. Also specific to HPC and WSL2.
+#### Disclaimer: I wrote this in 20 minutes so still needs some cleaning up. Also specific to LTU HPC and WSL2.
 
 
 First we index our genome with
@@ -70,7 +70,7 @@ module purge
 
 Next, we convert the GFF3 annotation to a BED12 transcript annotation, which is the format required by the RSeQC tools we're using.
 
-This step is best done on a linux machine, the HPC doesn't have the necssary tools (that I know off) to do this.
+This step is best done on a linux machine, the HPC doesn't have the necssary tools (that I know off) to do this. This facilitated (for me) via WSL2(https://learn.microsoft.com/en-us/windows/wsl/install).
 
 We will require gffread.
 
