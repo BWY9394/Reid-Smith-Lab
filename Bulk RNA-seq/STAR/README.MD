@@ -101,6 +101,8 @@ Next we run RSeQC using:
 
 And aggregate results with MULTQC.
 
+Please note it took 1 hour for 1 sample with 32G RAM and 8 Cores (CPUs per task), so scale up time needed as needed (i.e. switch partition to week) and time to (5:00:00). There are also more RSeQC metrics that can be run, but for our use-case the read distribution and perhaps junction saturation functions are most informative. You can find more information about the various RSeQC functions [here](https://rseqc.sourceforge.net/#use-pip2-to-install-rseqc-v2-6-6-or-older).
+
 ```bash
 #!/bin/bash
 #SBATCH --time=1:00:00
@@ -132,6 +134,7 @@ BAM_DIR="AlignedBam"
 BED_REF="Genomics/Vunguiculata_540_v1.2.RSeQC.BED12.bed"
 OUT_DIR="RSeQC/multqc_results/"
 
+mkdir -p "$OUT_DIR"
 
 echo "Starting job on $(hostname)"
 
@@ -152,7 +155,11 @@ for bam in "$BAM_DIR"/*.bam; do
     inner_distance.py -i "$bam" -r "$BED_REF" -o "$OUT_DIR/${sample}"
     
     # Run TIN (Note: Can be time consuming on large BAMs, comment out if running too slow)
-    tin.py -i "$bam" -r "$BED_REF" > "$OUT_DIR/${sample}.tin.txt"
+    # tin.py -i "$bam" -r "$BED_REF" > "$OUT_DIR/${sample}.tin.txt"
+    
+    # Run junction_saturation (check if current sequencing depth is deep enough to perform alternative splicing analyses)
+    junction_saturation.py -i "$bam" -r "$BED_REF" -o "$OUT_DIR/${sample}" 
+    
 done
 
 echo "RSeQC job finished."
