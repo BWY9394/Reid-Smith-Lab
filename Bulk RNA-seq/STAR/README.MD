@@ -129,11 +129,12 @@ Please note it took 1 hour for 1 sample with 32G RAM and 8 Cores (CPUs per task)
 module purge
 module load RSeQC/4.0.0-foss-2020a-Python-3.8.2
 
-
+# Edit these filenames and filepaths to be specific to where you have stored/name your own files
 BAM_DIR="AlignedBam"
 BED_REF="Genomics/Vunguiculata_540_v1.2.RSeQC.BED12.bed"
 OUT_DIR="RSeQC/multqc_results/"
 
+#create the output directory so it actually exists
 mkdir -p "$OUT_DIR"
 
 echo "Starting job on $(hostname)"
