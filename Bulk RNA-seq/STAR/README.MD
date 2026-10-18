@@ -14,6 +14,7 @@ and your raw reads
 
 4. Paired raw reads
 
+##### Indexing the genome
 
 ```bash
 #!/bin/bash
@@ -42,24 +43,74 @@ STAR \
 echo "finish indexing"
 
 echo "start alignment"
-
-STAR \
-  --runThreadN 12 \
-  --genomeDir ./STAR_index \
-  --readFilesIn \
-    ./Raw/C5/C5_1.fq.gz \
-    ./Raw/C5/C5_2.fq.gz \
-  --readFilesCommand zcat \
-  --twopassMode Basic \
-  --outFileNamePrefix STAR_test_ \
-  --outSAMtype BAM SortedByCoordinate
-
-echo "finished elignment"
 ```
 
+This will give you a folder called STAR_index (just rename according to whatever suits your purposes), which contains your indexed genome. You only ever need to this once per species, or when there is a substantial update to the reference genome. 
+
+##### Aligning reads against the genome
+
+Next, we run align reads against the genome. There are a couple of different ways to do it, but for the sake of linearity we will assume that you are running this on more than one sample and with PE reads. For SE reads, refer to here(hyperlink).
+
+The following script has been set up such that it scans through the folder where your raw reads live and outputs the aligned reads into a BAM file per sample into an output folder that will be created from where you have run the script from.
 
 
-This will give a bunch of stuff, but most importantly will produce your bam file e.g. STAR_test_Aligned.sortedByCoord.out.bam
+```bash
+
+#!/bin/bash
+#SBATCH --time=3:00:00
+#SBATCH --nodes=1
+#SBATCH --job-name=squant25
+#SBATCH --partition=week
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=64G
+#SBATCH --output=STAR_aln.out
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=b.weeyang@latrobe.edu.au
+
+module load STAR/2.7.10b-GCC-11.3.0
+
+
+# -- Configure these variables --------------------
+SAMPLES_DIR="Raw/C1_C24_XX_timecourse_2025"
+NAME_PATT="C"
+STAR_INDEX="STAR_index"
+OUTPUT_DIR="STAR_XX_2025"
+THREADS=12
+# -------------------------------------------------
+mkdir -p "$OUTPUT_DIR"
+shopt -s nullglob
+
+echo "Only process sample directories that actually exist"
+for sample_dir in "$SAMPLES_DIR"/${NAME_PATT}*/; do
+
+    samp=$(basename "$sample_dir")
+
+    R1="${sample_dir}/${samp}_1.fq.gz"
+    R2="${sample_dir}/${samp}_2.fq.gz"
+
+    if [[ ! -f "$R1" || ! -f "$R2" ]]; then
+        echo "Missing paired FASTQ files for ${samp}"
+        continue
+    fi
+
+    echo "Aligning ${samp}"
+    echo "R1: ${R1}"
+    echo "R2: ${R2}"
+
+    STAR \
+        --runThreadN "$THREADS" \
+        --genomeDir "$STAR_INDEX" \
+        --readFilesIn "$R1" "$R2" \
+        --readFilesCommand zcat \
+        --twopassMode Basic \
+        --outFileNamePrefix "${OUTPUT_DIR}/${samp}_" \
+        --outSAMtype BAM SortedByCoordinate
+
+done
+
+echo "Finished STAR alignment for each subdirectory."
+```
+This will give a bunch of stuff, but most importantly for our use-case,  will produce the bam file e.g. C1_Aligned.sortedByCoord.out.bam
 
 Index it with (run directly in HPC terminal line by line)
 ```bash
