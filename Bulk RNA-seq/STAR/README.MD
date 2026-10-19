@@ -49,7 +49,7 @@ This will give you a folder called STAR_index (just rename according to whatever
 
 ##### Aligning reads against the genome
 
-Next, we run align reads against the genome. There are a couple of different ways to do it, but for the sake of linearity we will assume that you are running this on more than one sample and with PE reads. For SE reads, refer to here(hyperlink).
+Next, we run align reads against the genome. There are a couple of different ways to do it, but for the sake of linearity we will assume that you are running this on more than one sample and with PE reads. For SE reads, refer to [here](https://github.com/BWY9394/Reid-Smith-Lab/blob/main/Bulk%20RNA-seq/STAR/STAR_align_auto_SE.sh).
 
 The following script has been set up such that it scans through the folder where your raw reads live and outputs the aligned reads into a BAM file per sample into an output folder that will be created from where you have run the script from.
 
