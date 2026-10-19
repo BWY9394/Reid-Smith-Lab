@@ -57,7 +57,7 @@ The following script has been set up such that it scans through the folder where
 ```bash
 
 #!/bin/bash
-#SBATCH --time=3:00:00
+#SBATCH --time=3-3:00:00
 #SBATCH --nodes=1
 #SBATCH --job-name=squant25
 #SBATCH --partition=week
@@ -227,7 +227,8 @@ multiqc "$OUT_DIR" -o "$OUT_DIR" --title "RSeQC_QC_Report"
 
 echo "RSeqQC and MultQC pipeline complete"
 
-
+##### Converting to BIGWIG format for assessment in IGV
+It may also be helpful to visualize the spread of your reads across the genome. In this case, 
 
 
 
