@@ -152,16 +152,16 @@ Next we run RSeQC using:
 
 And aggregate results with MULTQC.
 
-Please note it took 1 hour for 1 sample with 32G RAM and 8 Cores (CPUs per task), so scale up time needed as needed (i.e. switch partition to week) and time to (5:00:00). There are also more RSeQC metrics that can be run, but for our use-case the read distribution and perhaps junction saturation functions are most informative. You can find more information about the various RSeQC functions [here](https://rseqc.sourceforge.net/#use-pip2-to-install-rseqc-v2-6-6-or-older).
+Please note it took 1 hour for 1 sample with 32G RAM and 8 Cores (CPUs per task), so scale up time needed as needed (i.e. switch partition to week) and time to (5:00:00). This was mostly because of TIN.py, if you do not care about that metric, then 16G with 4 cores is already sufficient and probably quite generous (8 samples took 1/2h, so scale time as needed).  There are also more RSeQC metrics that can be run, but for our use-case the read distribution and perhaps junction saturation functions are most informative. You can find more information about the various RSeQC functions [here](https://rseqc.sourceforge.net/#use-pip2-to-install-rseqc-v2-6-6-or-older).
 
 ```bash
 #!/bin/bash
-#SBATCH --time=2-1:00:00
+#SBATCH --time=0-1:30:00
 #SBATCH --nodes=1
 #SBATCH --job-name=SRRSeQC
-#SBATCH --partition=week
-#SBATCH --cpus-per-task=12
-#SBATCH --mem=64G
+#SBATCH --partition=day
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.weeyang@latrobe.edu.au
 
