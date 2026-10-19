@@ -156,37 +156,50 @@ Please note it took 1 hour for 1 sample with 32G RAM and 8 Cores (CPUs per task)
 
 ```bash
 #!/bin/bash
-#SBATCH --time=1:00:00
+#SBATCH --time=2-1:00:00
 #SBATCH --nodes=1
 #SBATCH --job-name=SRRSeQC
-#SBATCH --partition=day
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --output=SRRSeQC.out
+#SBATCH --partition=week
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=64G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.weeyang@latrobe.edu.au
 
-# If you did not index your bam file, uncomment this step
-#module load SAMtools/1.16.1-GCC-11.3.0
 
-#echo "Start Indexing your aligned reads against the genome.bam file"
+BAM_DIR="STAR_vufun_2026"
+BED_REF="Genomics/Vunguiculata_540_v1.2.RSeQC.BED12.bed"
+OUT_DIR="STAR_vufun_2026/multqc_results/"
+
+mkdir -p "$OUT_DIR"
+shopt -s nullglob
+
+# If you did not index your bam file, uncomment these steps
+module load SAMtools/1.16.1-GCC-11.3.0
+
+bam_files=( "$BAM_DIR"/*.bam )
+
+echo "Found ${#bam_files[@]} BAM files"
+
+for bam in "${bam_files[@]}"; do
+    sample=$(basename "$bam" .bam)
+
+    if [[ ! -f "${bam}.bai" ]]; then
+        echo "Indexing: $sample"
+        samtools index "$bam"
+    else
+        echo "Index already exists: $sample"
+    fi
+done
+echo "Finished Indexing for all sample's BAM"
 
 #samtools index /data/group/reidlab/project/Ben/STAR/AlignedBam/STAR_test_Aligned.sortedByCoord.out.bam
-
-#echo "Finished Indexing"
 
 
 # Clear environment and load the exact cluster module
 module purge
 module load RSeQC/4.0.0-foss-2020a-Python-3.8.2
 
-# Edit these filenames and filepaths to be specific to where you have stored/name your own files
-BAM_DIR="AlignedBam"
-BED_REF="Genomics/Vunguiculata_540_v1.2.RSeQC.BED12.bed"
-OUT_DIR="RSeQC/multqc_results/"
 
-#create the output directory so it actually exists
-mkdir -p "$OUT_DIR"
 
 echo "Starting job on $(hostname)"
 
@@ -207,11 +220,12 @@ for bam in "$BAM_DIR"/*.bam; do
     inner_distance.py -i "$bam" -r "$BED_REF" -o "$OUT_DIR/${sample}"
     
     # Run TIN (Note: Can be time consuming on large BAMs, comment out if running too slow)
-    # tin.py -i "$bam" -r "$BED_REF" > "$OUT_DIR/${sample}.tin.txt"
-    
+    #tin.py -i "$bam" -r "$BED_REF" > "$OUT_DIR/${sample}.tin.txt"
+
     # Run junction_saturation (check if current sequencing depth is deep enough to perform alternative splicing analyses)
     junction_saturation.py -i "$bam" -r "$BED_REF" -o "$OUT_DIR/${sample}" 
-    
+
+
 done
 
 echo "RSeQC job finished."
@@ -227,13 +241,12 @@ multiqc "$OUT_DIR" -o "$OUT_DIR" --title "RSeQC_QC_Report"
 
 echo "RSeqQC and MultQC pipeline complete"
 
+```
+
+Inspect your multqc report to see (most importantly for us), the read_distribution.txt output
+
 ##### Converting to BIGWIG format for assessment in IGV
 It may also be helpful to visualize the spread of your reads across the genome. In this case, 
 
 
 
-
-
-```
-
-Inspect your multqc report to see (most importantly for us), the read_distribution.txt output
