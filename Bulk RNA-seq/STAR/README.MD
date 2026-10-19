@@ -166,9 +166,9 @@ Please note it took 1 hour for 1 sample with 32G RAM and 8 Cores (CPUs per task)
 #SBATCH --mail-user=b.weeyang@latrobe.edu.au
 
 
-BAM_DIR="STAR_vufun_2026"
+BAM_DIR="STAR_xx_2026"
 BED_REF="Genomics/Vunguiculata_540_v1.2.RSeQC.BED12.bed"
-OUT_DIR="STAR_vufun_2026/multqc_results/"
+OUT_DIR="STAR_xx_2026/multqc_results/"
 
 mkdir -p "$OUT_DIR"
 shopt -s nullglob
