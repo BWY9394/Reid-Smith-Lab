@@ -394,7 +394,8 @@ data.table::uniqueN(annotations$locusName) #Number of unique transcripts, discar
 tx2gene <- annotations[,c(3,2)] #54484
 head(tx2gene)
 ```
-This will give you 2 columns, first being the transcript name, the second being gene IDs
+This will give you 2 columns, first being the transcript name, the second being the gene ID (representive ID for the gene across all transcript variants/isoforms for that gene)
+
 ```r
 > head(tx2gene)
     transcriptName      locusName
